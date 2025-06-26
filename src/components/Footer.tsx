@@ -246,6 +246,20 @@ const Footer = () => {
               © 2025 MindLeap. All rights reserved.
             </p>
           </div>
+          
+          {/* Credits */}
+          <div className="text-center mt-4 text-xs text-gray-400 font-poppins">
+            Designed & Developed by{' '}
+            <a 
+              href="https://webbingprotechnologies.com/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-vibrant-orange hover:underline"
+            >
+              Webbing Pro Technologies
+            </a>
+            {' '}– 9059329297
+          </div>
         </div>
       </div>
     </footer>
