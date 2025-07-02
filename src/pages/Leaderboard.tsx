@@ -40,15 +40,14 @@ const Leaderboard = () => {
       
       if (currentUserDoc.exists()) {
         const userData = currentUserDoc.data();
-        userSchoolCode = userData.schoolCode || userData.school || '';
+        userSchoolCode = userData.schoolCode || userData.school || userData.districtCode || userData.district || '';
         setCurrentUserSchool(userSchoolCode);
+        console.log('Current user school code:', userSchoolCode);
       }
 
+      // If no school code found, show all students as fallback
       if (!userSchoolCode) {
-        console.log('No school code found for current user');
-        setStudents([]);
-        setLoading(false);
-        return;
+        console.log('No school code found, showing all students as fallback');
       }
 
       // Get all students from the same school
@@ -58,8 +57,14 @@ const Leaderboard = () => {
       for (const studentDoc of studentsSnapshot.docs) {
         const studentData = studentDoc.data();
         
-        // Filter by same school
-        if (studentData.schoolCode === userSchoolCode || studentData.school === userSchoolCode) {
+        // Filter by same school if user has school, otherwise show all students
+        const shouldInclude = !userSchoolCode || 
+          studentData.schoolCode === userSchoolCode || 
+          studentData.school === userSchoolCode ||
+          studentData.districtCode === userSchoolCode ||
+          studentData.district === userSchoolCode;
+
+        if (shouldInclude) {
           // Get daily streak data for this student
           const streakDoc = await getDoc(doc(db, 'dailyStreaks', studentDoc.id));
           let totalPoints = 0;
@@ -83,7 +88,7 @@ const Leaderboard = () => {
             studentId: studentData.studentId || studentDoc.id.substring(0, 8).toUpperCase(),
             userId: studentDoc.id,
             dailyStreakScore: totalPoints,
-            schoolId: userSchoolCode,
+            schoolId: userSchoolCode || 'general',
             profileSubtitle: getProfileSubtitle(totalPoints)
           });
         }
@@ -106,33 +111,34 @@ const Leaderboard = () => {
   };
 
   const getProfileSubtitle = (points: number): string => {
-    if (points >= 3000) return 'Legendary Achiever';
-    if (points >= 2000) return 'Master Performer';
-    if (points >= 1000) return 'Rising Star';
-    if (points >= 500) return 'Dedicated Learner';
+    if (points >= 4000) return 'Platinum Master';
+    if (points >= 3000) return 'Gold Champion';
+    if (points >= 2000) return 'Silver Achiever';
+    if (points >= 1000) return 'Bronze Warrior';
+    if (points >= 500) return 'Rising Star';
     if (points >= 100) return 'Getting Started';
     return 'New Student';
   };
 
   const getShieldIcon = (rank: number) => {
-    if (rank === 1) return '/sheild_icons/gold_sheild.png';
-    if (rank === 2) return '/sheild_icons/silver_sheild.png';
-    if (rank === 3) return '/sheild_icons/broze_sheild.png';
+    if (rank === 1) return '/sheild_icons/platinum_sheild.png';
+    if (rank === 2) return '/sheild_icons/gold_sheild.png';
+    if (rank === 3) return '/sheild_icons/silver_sheild.png';
     return '/sheild_icons/broze_sheild.png';
   };
 
   const getRankIcon = (rank: number) => {
-    if (rank === 1) return <Crown className="w-6 h-6 text-yellow-500" />;
-    if (rank === 2) return <Medal className="w-6 h-6 text-gray-400" />;
-    if (rank === 3) return <Trophy className="w-6 h-6 text-amber-600" />;
-    return <Star className="w-6 h-6 text-blue-500" />;
+    if (rank === 1) return <Crown className="w-6 h-6 text-purple-500" />;
+    if (rank === 2) return <Trophy className="w-6 h-6 text-yellow-500" />;
+    if (rank === 3) return <Medal className="w-6 h-6 text-gray-400" />;
+    return <Star className="w-6 h-6 text-amber-600" />;
   };
 
   const getRankStyle = (rank: number) => {
-    if (rank === 1) return 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-white';
-    if (rank === 2) return 'bg-gradient-to-r from-gray-300 to-gray-500 text-white';
-    if (rank === 3) return 'bg-gradient-to-r from-amber-500 to-amber-700 text-white';
-    return 'bg-gradient-to-r from-blue-400 to-blue-600 text-white';
+    if (rank === 1) return 'bg-gradient-to-r from-purple-500 to-purple-700 text-white';
+    if (rank === 2) return 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-white';
+    if (rank === 3) return 'bg-gradient-to-r from-gray-300 to-gray-500 text-white';
+    return 'bg-gradient-to-r from-amber-500 to-amber-700 text-white';
   };
 
   if (loading || !user) {
@@ -302,7 +308,7 @@ const Leaderboard = () => {
               <h3 className="font-bold text-blue-800 mb-2">🎯 About Daily Streak Scoring</h3>
               <p className="text-blue-700 text-sm">
                 Rankings are based on daily streak scores. Answer daily questions correctly to climb the leaderboard!
-                Only students from your school are shown in this ranking.
+                {currentUserSchool ? ' Only students from your school are shown.' : ' Showing all students.'}
               </p>
             </div>
           </motion.div>
