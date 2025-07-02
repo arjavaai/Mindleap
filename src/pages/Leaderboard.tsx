@@ -56,17 +56,25 @@ const Leaderboard = () => {
           // Get daily streak data for this student
           const streakDoc = await getDoc(doc(db, 'dailyStreaks', studentDoc.id));
           let totalPoints = 0;
+          let currentStreak = 0;
+          
           if (streakDoc.exists()) {
             const streakData = streakDoc.data();
             totalPoints = streakData.totalPoints || 0;
+            currentStreak = streakData.currentStreak || 0;
 
-            // If no stored total, calculate from records
+            // If no stored total, calculate from records (same logic as dashboard)
             if (totalPoints === 0 && streakData.records) {
               const records = Object.values(streakData.records) as any[];
               totalPoints = records.reduce((total, record) => {
                 return total + (record.points || (record.isCorrect ? 200 : 100));
               }, 0);
+              console.log(`Calculated points for ${studentData.name || studentDoc.id}: ${totalPoints} from ${records.length} records`);
+            } else {
+              console.log(`Stored points for ${studentData.name || studentDoc.id}: ${totalPoints}`);
             }
+          } else {
+            console.log(`No streak data found for ${studentData.name || studentDoc.id}`);
           }
           schoolStudents.push({
             id: studentDoc.id,
@@ -75,7 +83,7 @@ const Leaderboard = () => {
             userId: studentDoc.id,
             dailyStreakScore: totalPoints,
             schoolId: userSchoolCode || 'general',
-            profileSubtitle: getProfileSubtitle(totalPoints)
+            profileSubtitle: getProfileSubtitle(totalPoints, currentStreak)
           });
         }
       }
@@ -93,14 +101,24 @@ const Leaderboard = () => {
       setLoading(false);
     }
   };
-  const getProfileSubtitle = (points: number): string => {
-    if (points >= 4000) return 'Platinum Master';
-    if (points >= 3000) return 'Gold Champion';
-    if (points >= 2000) return 'Silver Achiever';
-    if (points >= 1000) return 'Bronze Warrior';
-    if (points >= 500) return 'Rising Star';
-    if (points >= 100) return 'Getting Started';
-    return 'New Student';
+  const getProfileSubtitle = (points: number, streak: number = 0): string => {
+    // Primary classification by points (medals)
+    let pointsTitle = '';
+    if (points >= 4000) pointsTitle = 'Platinum Master';
+    else if (points >= 3000) pointsTitle = 'Gold Champion';
+    else if (points >= 2000) pointsTitle = 'Silver Achiever';
+    else if (points >= 1000) pointsTitle = 'Bronze Warrior';
+    else if (points >= 500) pointsTitle = 'Rising Star';
+    else if (points >= 100) pointsTitle = 'Getting Started';
+    else pointsTitle = 'New Student';
+
+    // Add streak info if significant
+    if (streak >= 30) return `${pointsTitle} • ${streak} Day Legend`;
+    if (streak >= 14) return `${pointsTitle} • ${streak} Day Hero`;
+    if (streak >= 7) return `${pointsTitle} • ${streak} Day Streak`;
+    if (streak >= 3) return `${pointsTitle} • ${streak} Days`;
+    
+    return pointsTitle;
   };
   const getShieldIcon = (rank: number) => {
     if (rank === 1) return '/sheild_icons/platinum_sheild.png';
