@@ -804,7 +804,7 @@ const Dashboard = () => {
           {/* Report Card */}
           <motion.div
             className="group cursor-pointer"
-            onClick={() => console.log('Navigate to /report')}
+            onClick={() => navigate('/reports')}
             whileHover={{ 
               scale: 1.02,
               y: -5,
