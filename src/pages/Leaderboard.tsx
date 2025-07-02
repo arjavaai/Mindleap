@@ -61,28 +61,39 @@ const Leaderboard = () => {
         const shouldInclude = !userSchoolCode || studentData.schoolCode === userSchoolCode || studentData.school === userSchoolCode || studentData.districtCode === userSchoolCode || studentData.district === userSchoolCode;
         if (shouldInclude) {
           // Get daily streak data for this student
+          console.log(`Fetching streak data for student: ${studentData.name || studentDoc.id} (ID: ${studentDoc.id})`);
           const streakDoc = await getDoc(doc(db, 'dailyStreaks', studentDoc.id));
           let totalPoints = 0;
           let currentStreak = 0;
           
           if (streakDoc.exists()) {
             const streakData = streakDoc.data();
+            console.log(`Streak data exists for ${studentData.name}:`, streakData);
+            
             totalPoints = streakData.totalPoints || 0;
             currentStreak = streakData.currentStreak || 0;
+            
+            console.log(`Initial totalPoints: ${totalPoints}, currentStreak: ${currentStreak}`);
 
             // If no stored total, calculate from records (same logic as dashboard)
             if (totalPoints === 0 && streakData.records) {
               const records = Object.values(streakData.records) as any[];
+              console.log(`Found ${records.length} records for ${studentData.name}:`, records);
+              
               totalPoints = records.reduce((total, record) => {
-                return total + (record.points || (record.isCorrect ? 200 : 100));
+                const points = record.points || (record.isCorrect ? 200 : 100);
+                console.log(`Record points: ${points}, isCorrect: ${record.isCorrect}`);
+                return total + points;
               }, 0);
-              console.log(`Calculated points for ${studentData.name || studentDoc.id}: ${totalPoints} from ${records.length} records`);
-            } else {
-              console.log(`Stored points for ${studentData.name || studentDoc.id}: ${totalPoints}`);
+              console.log(`Calculated points for ${studentData.name}: ${totalPoints} from ${records.length} records`);
+            } else if (totalPoints > 0) {
+              console.log(`Using stored points for ${studentData.name}: ${totalPoints}`);
             }
           } else {
             console.log(`No streak data found for ${studentData.name || studentDoc.id}`);
           }
+          console.log(`Final points for ${studentData.name}: ${totalPoints}`);
+          
           schoolStudents.push({
             id: studentDoc.id,
             name: studentData.name || studentData.studentId || 'Unknown Student',
