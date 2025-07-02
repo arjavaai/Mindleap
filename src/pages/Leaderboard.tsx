@@ -75,15 +75,13 @@ const Leaderboard = () => {
             
             console.log(`Initial totalPoints: ${totalPoints}, currentStreak: ${currentStreak}`);
 
-            // If no stored total, calculate from records (same logic as dashboard)
+            // Only calculate if no stored totalPoints (same logic as DailyStreak)
             if (totalPoints === 0 && streakData.records) {
               const records = Object.values(streakData.records) as any[];
               console.log(`Found ${records.length} records for ${studentData.name}:`, records);
               
-              totalPoints = records.reduce((total, record) => {
-                const points = record.points || (record.isCorrect ? 200 : 100);
-                console.log(`Record points: ${points}, isCorrect: ${record.isCorrect}`);
-                return total + points;
+              totalPoints = records.reduce((sum: number, record: any) => {
+                return sum + (typeof record?.points === 'number' ? record.points : 0);
               }, 0);
               console.log(`Calculated points for ${studentData.name}: ${totalPoints} from ${records.length} records`);
             } else if (totalPoints > 0) {
