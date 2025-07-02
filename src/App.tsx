@@ -21,6 +21,7 @@ import DailyStreak from "./pages/DailyStreak";
 import Quiz from "./pages/Quiz";
 import Webinars from "./pages/Webinars";
 import Workshops from "./pages/Workshops";
+import Leaderboard from "./pages/Leaderboard";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,7 @@ const App = () => (
           <Route path="/quiz" element={<Quiz />} />
           <Route path="/webinars" element={<Webinars />} />
           <Route path="/workshops" element={<Workshops />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/about" element={<AboutUs />} />
           <Route path="/programs" element={<Programs />} />
           <Route path="/schools" element={<Schools />} />

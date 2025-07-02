@@ -284,6 +284,16 @@ const WorkshopManagementTab = () => {
     return new Date() > scheduledDate;
   };
 
+  const getSelectedDistricts = () => {
+    const selectedState = states.find(s => s.id === workshopData.targetStateId);
+    return selectedState?.districts || [];
+  };
+
+  const getSelectedSchools = () => {
+    const selectedDistrict = getSelectedDistricts().find(d => d.districtCode === workshopData.targetDistrictId);
+    return (selectedDistrict as any)?.schools || [];
+  };
+
   const exportStatsToCSV = () => {
     if (!selectedWorkshop || !workshopViews.length) return;
     
@@ -649,15 +659,11 @@ const WorkshopManagementTab = () => {
                           className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                         >
                           <option value="">Select a school</option>
-                          {states
-                            .find((s) => s.stateName === workshopData.targetStateId)
-                            ?.districts
-                            .find((d) => d.districtCode === workshopData.targetDistrictId)
-                            ?.schools?.map((school: School) => (
-                              <option key={school.id} value={school.schoolCode}>
-                                {school.name}
-                              </option>
-                            ))}
+                          {getSelectedSchools().map((school: School) => (
+                            <option key={school.id} value={school.schoolCode}>
+                              {school.name}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     )}

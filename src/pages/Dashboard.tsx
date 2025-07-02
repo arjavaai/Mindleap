@@ -678,7 +678,7 @@ const Dashboard = () => {
           {/* Leaderboard Card */}
             <motion.div
               className="group cursor-pointer"
-            onClick={() => console.log('Navigate to /leaderboard')}
+            onClick={() => navigate('/leaderboard')}
               whileHover={{ 
               scale: 1.02,
               y: -5,
