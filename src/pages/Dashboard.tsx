@@ -85,6 +85,9 @@ const Dashboard = () => {
         if (studentSnap.exists()) {
           const data = studentSnap.data();
           
+          // Debug: Log the student data to see what fields are available
+          console.log('Student data from Firestore:', data);
+          
           // Set profile data for modal
           setProfileData(data);
           
@@ -516,17 +519,32 @@ const Dashboard = () => {
                         
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <label className="text-sm font-medium text-gray-600">School</label>
-                          <p className="text-gray-800">{profileData.school || profileData.schoolCode || 'Not assigned'}</p>
+                          <p className="text-gray-800">{profileData.school || profileData.schoolName || profileData.schoolCode || 'Not assigned'}</p>
+                        </div>
+                        
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <label className="text-sm font-medium text-gray-600">School ID</label>
+                          <p className="text-gray-800">{profileData.schoolId || profileData.schoolCode || 'Not assigned'}</p>
                         </div>
                         
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <label className="text-sm font-medium text-gray-600">District</label>
-                          <p className="text-gray-800">{profileData.district || profileData.districtCode || 'Not assigned'}</p>
+                          <p className="text-gray-800">{profileData.district || profileData.districtName || profileData.districtCode || 'Not assigned'}</p>
+                        </div>
+                        
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <label className="text-sm font-medium text-gray-600">District ID</label>
+                          <p className="text-gray-800">{profileData.districtId || profileData.districtCode || 'Not assigned'}</p>
                         </div>
                         
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <label className="text-sm font-medium text-gray-600">State</label>
-                          <p className="text-gray-800">{profileData.state || 'Not assigned'}</p>
+                          <p className="text-gray-800">{profileData.state || profileData.stateName || 'Not assigned'}</p>
+                        </div>
+                        
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <label className="text-sm font-medium text-gray-600">State ID</label>
+                          <p className="text-gray-800">{profileData.stateId || profileData.stateCode || 'Not assigned'}</p>
                         </div>
                         
                         <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-3 rounded-lg">
