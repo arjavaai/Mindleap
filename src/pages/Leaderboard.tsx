@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Trophy, Medal, Crown, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth, db } from '../lib/firebase';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 
 interface LeaderboardStudent {
   id: string;
@@ -16,72 +19,100 @@ interface LeaderboardStudent {
 
 const Leaderboard = () => {
   const navigate = useNavigate();
+  const [user] = useAuthState(auth);
   const [students, setStudents] = useState<LeaderboardStudent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserSchool] = useState('school-123'); // This should come from auth context
+  const [currentUserSchool, setCurrentUserSchool] = useState<string>('');
 
   useEffect(() => {
-    // TODO: Replace with actual API call to get leaderboard data
-    // This should filter by currentUserSchool
-    const mockData: LeaderboardStudent[] = [
-      {
-        id: '1',
-        name: 'Arjun Patel',
-        studentId: 'STU001',
-        userId: 'USER001',
-        dailyStreakScore: 450,
-        rank: 1,
-        schoolId: 'school-123',
-        profileSubtitle: 'Math Whiz'
-      },
-      {
-        id: '2',
-        name: 'Priya Sharma',
-        studentId: 'STU002',
-        userId: 'USER002',
-        dailyStreakScore: 425,
-        rank: 2,
-        schoolId: 'school-123',
-        profileSubtitle: 'Science Expert'
-      },
-      {
-        id: '3',
-        name: 'Rohan Kumar',
-        studentId: 'STU003',
-        userId: 'USER003',
-        dailyStreakScore: 400,
-        rank: 3,
-        schoolId: 'school-123',
-        profileSubtitle: 'All Rounder'
-      },
-      {
-        id: '4',
-        name: 'Anita Singh',
-        studentId: 'STU004',
-        userId: 'USER004',
-        dailyStreakScore: 375,
-        rank: 4,
-        schoolId: 'school-123',
-        profileSubtitle: 'Quiz Master'
-      },
-      {
-        id: '5',
-        name: 'Vikram Joshi',
-        studentId: 'STU005',
-        userId: 'USER005',
-        dailyStreakScore: 350,
-        rank: 5,
-        schoolId: 'school-123',
-        profileSubtitle: 'Problem Solver'
-      }
-    ];
+    if (user) {
+      fetchLeaderboardData();
+    }
+  }, [user]);
 
-    // Simulate API call
-    setTimeout(() => {
-      setStudents(mockData);
+  const fetchLeaderboardData = async () => {
+    if (!user) return;
+    
+    try {
+      // First, get current user's school information
+      const currentUserDoc = await getDoc(doc(db, 'students', user.uid));
+      let userSchoolCode = '';
+      
+      if (currentUserDoc.exists()) {
+        const userData = currentUserDoc.data();
+        userSchoolCode = userData.schoolCode || userData.school || '';
+        setCurrentUserSchool(userSchoolCode);
+      }
+
+      if (!userSchoolCode) {
+        console.log('No school code found for current user');
+        setStudents([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get all students from the same school
+      const studentsSnapshot = await getDocs(collection(db, 'students'));
+      const schoolStudents: any[] = [];
+
+      for (const studentDoc of studentsSnapshot.docs) {
+        const studentData = studentDoc.data();
+        
+        // Filter by same school
+        if (studentData.schoolCode === userSchoolCode || studentData.school === userSchoolCode) {
+          // Get daily streak data for this student
+          const streakDoc = await getDoc(doc(db, 'dailyStreaks', studentDoc.id));
+          let totalPoints = 0;
+          
+          if (streakDoc.exists()) {
+            const streakData = streakDoc.data();
+            totalPoints = streakData.totalPoints || 0;
+            
+            // If no stored total, calculate from records
+            if (totalPoints === 0 && streakData.records) {
+              const records = Object.values(streakData.records) as any[];
+              totalPoints = records.reduce((total, record) => {
+                return total + (record.points || (record.isCorrect ? 200 : 100));
+              }, 0);
+            }
+          }
+
+          schoolStudents.push({
+            id: studentDoc.id,
+            name: studentData.name || studentData.studentId || 'Unknown Student',
+            studentId: studentData.studentId || studentDoc.id.substring(0, 8).toUpperCase(),
+            userId: studentDoc.id,
+            dailyStreakScore: totalPoints,
+            schoolId: userSchoolCode,
+            profileSubtitle: getProfileSubtitle(totalPoints)
+          });
+        }
+      }
+
+      // Sort by daily streak score (highest first) and assign ranks
+      schoolStudents.sort((a, b) => b.dailyStreakScore - a.dailyStreakScore);
+      
+      const rankedStudents = schoolStudents.map((student, index) => ({
+        ...student,
+        rank: index + 1
+      }));
+
+      setStudents(rankedStudents);
+    } catch (error) {
+      console.error('Error fetching leaderboard data:', error);
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, [currentUserSchool]);
+    }
+  };
+
+  const getProfileSubtitle = (points: number): string => {
+    if (points >= 3000) return 'Legendary Achiever';
+    if (points >= 2000) return 'Master Performer';
+    if (points >= 1000) return 'Rising Star';
+    if (points >= 500) return 'Dedicated Learner';
+    if (points >= 100) return 'Getting Started';
+    return 'New Student';
+  };
 
   const getShieldIcon = (rank: number) => {
     if (rank === 1) return '/sheild_icons/gold_sheild.png';
@@ -104,7 +135,7 @@ const Leaderboard = () => {
     return 'bg-gradient-to-r from-blue-400 to-blue-600 text-white';
   };
 
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-blue-50 to-purple-50 flex items-center justify-center">
         <motion.div
