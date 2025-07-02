@@ -352,7 +352,7 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                   >
                     {selectedOption === question.correctOption 
                       ? '🌟 You earned 200 points! Keep up the amazing work!' 
-                      : `✨ The correct answer was ${question.correctOption.toUpperCase()}. You'll get it next time!`
+                      : `✨ The correct answer was ${question.correctOption.toUpperCase()}. You earned 100 points for trying!`
                     }
                   </motion.p>
                 </motion.div>

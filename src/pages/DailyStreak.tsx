@@ -281,7 +281,7 @@ const DailyStreak = () => {
         const totalPts = Object.values(records).reduce((sum: number, record: any) => {
           return sum + (typeof record?.points === 'number' ? record.points : 0);
         }, 0);
-        setTotalPoints(totalPts);
+        setTotalPoints(Number(totalPts));
       }
     } catch (error) {
       console.error('Error loading streak records:', error);
@@ -299,7 +299,7 @@ const DailyStreak = () => {
     const endTime = new Date();
     const timeTaken = Math.floor((endTime.getTime() - questionStartTime.getTime()) / 1000);
     const isCorrect = selectedOption === todayQuestion.correctOption;
-    const points = isCorrect ? 10 : 0;
+    const points = isCorrect ? 200 : 100;
     
     const record: DailyStreakRecord = {
       questionId: todayQuestion.id,
@@ -326,7 +326,7 @@ const DailyStreak = () => {
       
       setTodayRecord(record);
       setCurrentStreak(isCorrect ? currentStreak + 1 : 0);
-      setTotalPoints(totalPoints + points);
+      setTotalPoints((prev) => prev + points);
       
     } catch (error) {
       console.error('Error saving answer:', error);
@@ -349,6 +349,39 @@ const DailyStreak = () => {
     if (currentStreak < 5) return "from-blue-400 to-blue-500";
     if (currentStreak < 10) return "from-orange-400 to-red-500";
     return "from-purple-400 to-pink-500";
+  };
+
+  const getBadgeFromPoints = (points: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' => {
+    if (points >= 4000) return 'Platinum';
+    if (points >= 3000) return 'Gold';
+    if (points >= 2000) return 'Silver';
+    if (points >= 1000) return 'Bronze';
+    return 'Bronze'; // Default for less than 1000 points
+  };
+
+  const getMedalIcon = (badge: string) => {
+    switch (badge) {
+      case 'Bronze': return '/sheild_icons/broze_sheild.png';
+      case 'Silver': return '/sheild_icons/silver_sheild.png';
+      case 'Gold': return '/sheild_icons/gold_sheild.png';
+      case 'Platinum': return '/sheild_icons/platinum_sheild.png';
+      default: return '/sheild_icons/broze_sheild.png';
+    }
+  };
+
+  const getPointsFromStreak = (streakCount: number): number => {
+    // Each correct answer gives 200 points
+    return streakCount * 200;
+  };
+
+  const getBadgeColor = (badge: string) => {
+    switch (badge) {
+      case 'Bronze': return 'from-amber-600 to-yellow-600';
+      case 'Silver': return 'from-gray-400 to-gray-600';
+      case 'Gold': return 'from-yellow-400 to-yellow-600';
+      case 'Platinum': return 'from-purple-400 to-purple-600';
+      default: return 'from-gray-400 to-gray-600';
+    }
   };
 
   if (isLoading) {
@@ -472,6 +505,15 @@ const DailyStreak = () => {
                   <Flame className="w-5 h-5" />
                 </motion.div>
                 <span className="font-bold">{currentStreak} Day Streak</span>
+              </div>
+              
+                            <div className={`flex items-center gap-2 bg-gradient-to-r ${getBadgeColor(getBadgeFromPoints(totalPoints))} px-4 py-2 rounded-full text-white`}>
+                <img 
+                  src={getMedalIcon(getBadgeFromPoints(totalPoints))}
+                  alt={`${getBadgeFromPoints(totalPoints)} Shield`}
+                  className="w-6 h-6 object-contain"
+                />
+                <span className="font-bold">{getBadgeFromPoints(totalPoints)}</span>
               </div>
             </motion.div>
           </div>
@@ -663,6 +705,126 @@ const DailyStreak = () => {
             </div>
           </motion.div>
         </div>
+
+        {/* Achievement Badge Section */}
+        <motion.div
+          variants={itemVariants}
+          className="mt-8"
+        >
+          <div className="bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 overflow-hidden">
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 p-6 text-white">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Award className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold">Achievement Badge</h3>
+                  <p className="text-orange-100">Your current medal level</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8">
+              <div className="grid md:grid-cols-3 gap-6">
+                {/* Current Badge */}
+                <div className="text-center">
+                  <motion.div
+                    className={`bg-gradient-to-r ${getBadgeColor(getBadgeFromPoints(totalPoints))} rounded-2xl p-6 text-white mb-4`}
+                    animate={{
+                      boxShadow: [
+                        "0 0 20px rgba(147, 51, 234, 0.3)",
+                        "0 0 30px rgba(147, 51, 234, 0.5)",
+                        "0 0 20px rgba(147, 51, 234, 0.3)"
+                      ]
+                    }}
+                    transition={{ duration: 3, repeat: Infinity }}
+                  >
+                    <motion.div
+                      animate={{ 
+                        scale: [1, 1.1, 1],
+                        y: [0, -5, 0]
+                      }}
+                      transition={{ 
+                        duration: 2,
+                        repeat: Infinity
+                      }}
+                    >
+                      <img 
+                        src={getMedalIcon(getBadgeFromPoints(totalPoints))} 
+                        alt={`${getBadgeFromPoints(totalPoints)} Shield`}
+                        className="w-20 h-20 mx-auto object-contain mb-4"
+                      />
+                    </motion.div>
+                    <h4 className="text-xl font-bold">{getBadgeFromPoints(totalPoints)}</h4>
+                    <p className="text-sm opacity-90">Current Shield</p>
+                  </motion.div>
+                </div>
+
+                {/* Points Progress */}
+                <div className="text-center">
+                  <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-6 text-white mb-4">
+                    <div className="mb-4">
+                      <Star className="w-16 h-16 mx-auto" />
+                    </div>
+                    <h4 className="text-2xl font-bold">{totalPoints}</h4>
+                    <p className="text-sm opacity-90">Total Points</p>
+                  </div>
+                </div>
+
+                {/* Next Milestone */}
+                <div className="text-center">
+                  <div className="bg-gradient-to-r from-blue-400 to-indigo-500 rounded-2xl p-6 text-white mb-4">
+                    <div className="mb-4">
+                      <Target className="w-16 h-16 mx-auto" />
+                    </div>
+                    {totalPoints >= 4000 ? (
+                      <>
+                        <h4 className="text-xl font-bold">Max Level!</h4>
+                        <p className="text-sm opacity-90">Platinum Achieved</p>
+                      </>
+                    ) : (
+                      <>
+                        <h4 className="text-xl font-bold">
+                          {totalPoints >= 3000 ? '4000' :
+                           totalPoints >= 2000 ? '3000' :
+                           totalPoints >= 1000 ? '2000' : '1000'}
+                        </h4>
+                        <p className="text-sm opacity-90">
+                          Next: {totalPoints >= 3000 ? 'Platinum' :
+                                 totalPoints >= 2000 ? 'Gold' :
+                                 totalPoints >= 1000 ? 'Silver' : 'Bronze'}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mt-6">
+                <div className="bg-gray-200 rounded-full h-4 overflow-hidden">
+                  <motion.div
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ 
+                      width: `${Math.min(100, (totalPoints % 1000) / 10)}%`
+                    }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                  />
+                </div>
+                <div className="flex justify-between text-sm text-gray-600 mt-2">
+                  <span>Current Progress</span>
+                  <span>{totalPoints} / {
+                    totalPoints >= 4000 ? '4000+' :
+                    totalPoints >= 3000 ? '4000' :
+                    totalPoints >= 2000 ? '3000' :
+                    totalPoints >= 1000 ? '2000' : '1000'
+                  } points</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </motion.div>
 
       {/* Question Modal */}

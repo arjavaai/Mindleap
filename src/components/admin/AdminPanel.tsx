@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, School, LogOut, Brain, Calendar, Bug, MessageSquare, Building, MapPin, Target, Video } from 'lucide-react';
+import { Users, School, LogOut, Brain, Calendar, Bug, MessageSquare, Building, MapPin, Target, Video, Play } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import SchoolsTab from './SchoolsTab';
 import UsersTab from './UsersTab';
@@ -11,6 +11,7 @@ import SchoolRequestsTab from './SchoolRequestsTab';
 import StateManagementTab from './StateManagementTab';
 import QuizManagementTab from './QuizManagementTab';
 import WebinarManagementTab from './WebinarManagementTab';
+import WorkshopManagementTab from './WorkshopManagementTab';
 
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState('schools');
@@ -30,6 +31,7 @@ const AdminPanel = () => {
     { id: 'states', label: 'States & Districts', icon: MapPin },
     { id: 'quizzes', label: 'Quiz Management', icon: Target },
     { id: 'webinars', label: 'Live Webinars', icon: Video },
+    { id: 'workshops', label: 'Workshops', icon: Play },
     { id: 'contact-queries', label: 'Contact Queries', icon: MessageSquare },
     { id: 'school-requests', label: 'School Requests', icon: Building },
     { id: 'questions', label: 'Streak Scheduler', icon: Calendar },
@@ -105,6 +107,7 @@ const AdminPanel = () => {
             {activeTab === 'states' && <StateManagementTab />}
             {activeTab === 'quizzes' && <QuizManagementTab />}
             {activeTab === 'webinars' && <WebinarManagementTab />}
+            {activeTab === 'workshops' && <WorkshopManagementTab />}
             {activeTab === 'contact-queries' && <ContactQueriesTab />}
             {activeTab === 'school-requests' && <SchoolRequestsTab />}
             {activeTab === 'questions' && <DailyStreakQuestionsTab />}

@@ -20,6 +20,7 @@ import Dashboard from "./pages/Dashboard";
 import DailyStreak from "./pages/DailyStreak";
 import Quiz from "./pages/Quiz";
 import Webinars from "./pages/Webinars";
+import Workshops from "./pages/Workshops";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
           <Route path="/daily-streak" element={<DailyStreak />} />
           <Route path="/quiz" element={<Quiz />} />
           <Route path="/webinars" element={<Webinars />} />
+          <Route path="/workshops" element={<Workshops />} />
           <Route path="/about" element={<AboutUs />} />
           <Route path="/programs" element={<Programs />} />
           <Route path="/schools" element={<Schools />} />

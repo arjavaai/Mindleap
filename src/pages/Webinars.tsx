@@ -407,42 +407,6 @@ const Webinars = () => {
       </motion.header>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Debug Panel - Remove this in production */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6"
-        >
-          <h3 className="text-sm font-semibold text-yellow-800 mb-2">Debug Information</h3>
-          <div className="text-xs text-yellow-700 space-y-1">
-            <p><strong>User:</strong> {user ? user.email : 'Not logged in'}</p>
-            <p><strong>Student Data:</strong> {studentData ? JSON.stringify(studentData, null, 2) : 'No student data'}</p>
-            <p><strong>Total Webinars Found:</strong> {webinars.length}</p>
-            <p><strong>Upcoming:</strong> {upcomingWebinars.length} | <strong>Completed:</strong> {completedWebinars.length}</p>
-          </div>
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => {
-                setLoading(true);
-                if (user) {
-                  fetchStudentData();
-                } else {
-                  fetchWebinars();
-                }
-              }}
-              className="px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700 transition-colors"
-            >
-              Refresh Data
-            </button>
-            <button
-              onClick={testFirebaseConnection}
-              className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-            >
-              Test Firebase
-            </button>
-          </div>
-        </motion.div>
-
         {/* Tab Navigation */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -491,67 +455,93 @@ const Webinars = () => {
             transition={{ duration: 0.3 }}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            {(activeTab === 'upcoming' ? upcomingWebinars : completedWebinars).map((webinar, index) => (
-              <motion.div
-                key={webinar.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ 
-                  scale: 1.05,
-                  y: -10,
-                  boxShadow: "0 20px 40px rgba(0,0,0,0.1)"
-                }}
-                className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/50 hover:border-purple-200 transition-all duration-300 cursor-pointer group"
-                onClick={() => handleViewWebinar(webinar)}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    {getTargetIcon(webinar.targetType)}
-                    <span className="text-xs text-gray-500 capitalize">{webinar.targetType}</span>
-                  </div>
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    isWebinarCompleted(webinar)
-                      ? 'bg-gray-100 text-gray-600'
-                      : 'bg-green-100 text-green-600'
-                  }`}>
-                    {isWebinarCompleted(webinar) ? 'Completed' : 'Upcoming'}
-                  </div>
-                </div>
+            {(activeTab === 'upcoming' ? upcomingWebinars : completedWebinars).map((webinar, index) => {
+              const isWebinarStarted = () => {
+                if (!webinar.scheduledDate) return false;
+                const scheduledDate = webinar.scheduledDate.toDate ? webinar.scheduledDate.toDate() : new Date(webinar.scheduledDate);
+                return new Date() >= scheduledDate;
+              };
 
-                <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
-                  {webinar.title}
-                </h3>
-                
-                {webinar.description && (
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                    {webinar.description}
-                  </p>
-                )}
+              const canWatch = isWebinarCompleted(webinar) || isWebinarStarted();
 
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar className="w-4 h-4" />
-                    {formatDate(webinar.scheduledDate)}
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    {webinar.duration} minutes
-                  </div>
-                  {webinar.viewCount && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Users className="w-4 h-4" />
-                      {webinar.viewCount} views
+              return (
+                <motion.div
+                  key={webinar.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ 
+                    scale: 1.05,
+                    y: -10,
+                    boxShadow: "0 20px 40px rgba(0,0,0,0.1)"
+                  }}
+                  className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/50 hover:border-purple-200 transition-all duration-300 cursor-pointer group"
+                  onClick={() => canWatch && handleViewWebinar(webinar)}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      {getTargetIcon(webinar.targetType)}
+                      <span className="text-xs text-gray-500 capitalize">{webinar.targetType}</span>
                     </div>
-                  )}
-                </div>
+                    <div className="flex flex-col gap-1">
+                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        isWebinarCompleted(webinar)
+                          ? 'bg-gray-100 text-gray-600'
+                          : 'bg-green-100 text-green-600'
+                      }`}>
+                        {isWebinarCompleted(webinar) ? 'Completed' : 'Upcoming'}
+                      </div>
+                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        webinar.audienceType === 'students' 
+                          ? 'bg-blue-100 text-blue-600' 
+                          : 'bg-purple-100 text-purple-600'
+                      }`}>
+                        For {webinar.audienceType === 'students' ? 'Students' : 'Parents'}
+                      </div>
+                    </div>
+                  </div>
 
-                <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-300 group-hover:scale-105">
-                  <Play className="w-4 h-4" />
-                  Watch Webinar
-                </button>
-              </motion.div>
-            ))}
+                  <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
+                    {webinar.title}
+                  </h3>
+                  
+                  {webinar.description && (
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                      {webinar.description}
+                    </p>
+                  )}
+
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Calendar className="w-4 h-4" />
+                      {formatDate(webinar.scheduledDate)}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Clock className="w-4 h-4" />
+                      {webinar.duration} minutes
+                    </div>
+                    {webinar.viewCount && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Users className="w-4 h-4" />
+                        {webinar.viewCount} views
+                      </div>
+                    )}
+                  </div>
+
+                  <button 
+                    disabled={!canWatch}
+                    className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-all duration-300 ${
+                      canWatch
+                        ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 group-hover:scale-105'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <Play className="w-4 h-4" />
+                    {canWatch ? 'Watch Webinar' : 'Available Soon'}
+                  </button>
+                </motion.div>
+              );
+            })}
           </motion.div>
         </AnimatePresence>
 

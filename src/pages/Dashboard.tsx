@@ -27,11 +27,12 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
+import ShieldProgressBar from '../components/ui/ShieldProgressBar';
 
 interface StudentData {
   streakCount: number;
   totalPoints: number;
-  badge: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+  badge: 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | null;
   name: string;
   questionsAnswered: number;
 }
@@ -47,7 +48,7 @@ const Dashboard = () => {
   const [studentData, setStudentData] = useState<StudentData>({
     streakCount: 0,
     totalPoints: 0,
-    badge: 'Bronze',
+    badge: null,
     name: '',
     questionsAnswered: 0
   });
@@ -59,7 +60,19 @@ const Dashboard = () => {
     return () => {};
   }, []);
 
+  // Refresh data when component mounts or becomes visible
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        // Page became visible, refresh data
+        fetchStudentData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user]);
+
     const fetchStudentData = async () => {
       if (user) {
         try {
@@ -71,17 +84,28 @@ const Dashboard = () => {
             
             // Fetch daily streak records to calculate current streak and total points
             const streakRecords = await fetchStreakRecords();
-            const currentStreak = calculateCurrentStreak(streakRecords);
-            const totalPoints = streakRecords.reduce((total, record) => total + (record.points || 0), 0);
+          
+          // Also get the stored totals from dailyStreaks collection for accuracy
+          const userStreakDoc = await getDoc(doc(db, 'dailyStreaks', user.uid));
+          let currentStreak = 0;
+          let totalPoints = 0;
+          
+          if (userStreakDoc.exists()) {
+            const streakData = userStreakDoc.data();
+            currentStreak = streakData.currentStreak || 0;
+            totalPoints = streakData.totalPoints || 0;
+          } else {
+            // Fallback to calculated values if no stored data
+            currentStreak = calculateCurrentStreak(streakRecords);
+            totalPoints = streakRecords.reduce((total, record) => total + (record.points || 0), 0);
+          }
+          
             const questionsAnswered = streakRecords.length;
-            
-            // Determine badge based on points
-            const badge = getBadgeFromPoints(totalPoints);
             
             setStudentData({
               streakCount: currentStreak,
               totalPoints: totalPoints,
-              badge: badge,
+            badge: getBadgeFromPoints(totalPoints),
               name: data.name || data.studentId || user.email?.split('@')[0] || 'Student',
               questionsAnswered: questionsAnswered
             });
@@ -89,7 +113,7 @@ const Dashboard = () => {
             setStudentData({
               streakCount: 0,
               totalPoints: 0,
-              badge: 'Bronze',
+            badge: null,
               name: user.email?.split('@')[0] || 'Student',
               questionsAnswered: 0
             });
@@ -99,7 +123,7 @@ const Dashboard = () => {
           setStudentData({
             streakCount: 0,
             totalPoints: 0,
-            badge: 'Bronze',
+          badge: null,
             name: user.email?.split('@')[0] || 'Student',
             questionsAnswered: 0
           });
@@ -108,27 +132,32 @@ const Dashboard = () => {
       setLoading(false);
     };
 
+  useEffect(() => {
     fetchStudentData();
   }, [user]);
+
+
 
   const fetchStreakRecords = async (): Promise<DailyStreakRecord[]> => {
     if (!user) return [];
     
     try {
-      const recordsQuery = query(
-        collection(db, 'students', user.uid, 'dailyStreaks'),
-        orderBy('timestamp', 'desc')
-      );
+      // Get the user's daily streak data from the correct collection
+      const userStreakDoc = await getDoc(doc(db, 'dailyStreaks', user.uid));
       
-      const recordsSnapshot = await getDocs(recordsQuery);
-      return recordsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          isCorrect: data.isCorrect || false,
-          points: data.isCorrect ? 200 : 0,
-          timestamp: data.timestamp
-        };
-      });
+      if (userStreakDoc.exists()) {
+        const data = userStreakDoc.data();
+        const records = data.records || {};
+        
+        // Convert records object to array
+        return Object.values(records).map((record: any) => ({
+          isCorrect: record.isCorrect || false,
+          points: record.points || (record.isCorrect ? 200 : 100),
+          timestamp: record.timestamp
+        }));
+      }
+      
+      return [];
     } catch (error) {
       console.error('Error fetching streak records:', error);
       return [];
@@ -171,11 +200,27 @@ const Dashboard = () => {
     return streak;
   };
 
-  const getBadgeFromPoints = (points: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' => {
-    if (points >= 5000) return 'Platinum';
-    if (points >= 2000) return 'Gold';
-    if (points >= 800) return 'Silver';
-    return 'Bronze';
+  const getBadgeFromPoints = (points: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | null => {
+    if (points >= 4000) return 'Platinum';
+    if (points >= 3000) return 'Gold';
+    if (points >= 2000) return 'Silver';
+    if (points >= 1000) return 'Bronze';
+    return null; // No badge for less than 1000 points
+  };
+
+  const getMedalIcon = (badge: string) => {
+    switch (badge) {
+      case 'Bronze': return '/sheild_icons/broze_sheild.png';
+      case 'Silver': return '/sheild_icons/silver_sheild.png';
+      case 'Gold': return '/sheild_icons/gold_sheild.png';
+      case 'Platinum': return '/sheild_icons/platinum_sheild.png';
+      default: return '/sheild_icons/broze_sheild.png';
+    }
+  };
+
+  const getPointsFromStreak = (streakCount: number): number => {
+    // Each correct answer gives 200 points
+    return streakCount * 200;
   };
 
   const handleSignOut = async () => {
@@ -230,61 +275,14 @@ const Dashboard = () => {
       navigate('/quiz');
     } else if (route === '/webinars') {
       navigate('/webinars');
+    } else if (route === '/workshops') {
+      navigate('/workshops');
     } else {
       console.log(`Navigate to ${route}`);
     }
   };
 
-  const dashboardCards = [
-    {
-      id: 'streak',
-      title: 'Daily Streak',
-      icon: <Flame className="w-8 h-8" />,
-      gradient: 'from-red-400 to-orange-500',
-      route: '/streak',
-      description: 'Keep learning every day!'
-    },
-    {
-      id: 'quiz',
-      title: 'Quiz Challenge',
-      icon: <Target className="w-8 h-8" />,
-      gradient: 'from-blue-400 to-indigo-500',
-      route: '/quiz',
-      description: 'Test your knowledge'
-    },
-    {
-      id: 'webinar',
-      title: 'Live Webinars',
-      icon: <Play className="w-8 h-8" />,
-      gradient: 'from-green-400 to-emerald-500',
-      route: '/webinars',
-      description: 'Join live sessions'
-    },
-    {
-      id: 'workshop',
-      title: 'Workshops',
-      icon: <Users className="w-8 h-8" />,
-      gradient: 'from-purple-400 to-violet-500',
-      route: '/workshop',
-      description: 'Interactive learning'
-    },
-    {
-      id: 'leaderboard',
-      title: 'Leaderboard',
-      icon: <Trophy className="w-8 h-8" />,
-      gradient: 'from-yellow-400 to-amber-500',
-      route: '/leaderboard',
-      description: 'See your ranking'
-    },
-    {
-      id: 'reports',
-      title: 'Progress Report',
-      icon: <TrendingUp className="w-8 h-8" />,
-      gradient: 'from-teal-400 to-cyan-500',
-      route: '/reports',
-      description: 'Track your progress'
-    }
-  ];
+
 
   // Animation variants
   const containerVariants = {
@@ -451,6 +449,7 @@ const Dashboard = () => {
               </motion.div>
 
               {/* Level Badge */}
+              {getBadgeFromPoints(studentData.totalPoints) && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -466,12 +465,17 @@ const Dashboard = () => {
                     ]
                   }}
                   transition={{ duration: 2, repeat: Infinity }}
-                  className={`flex items-center gap-2 bg-gradient-to-r ${getBadgeColor(studentData.badge)} px-4 py-2 rounded-full text-white`}
+                    className={`flex items-center gap-2 bg-gradient-to-r ${getBadgeColor(getBadgeFromPoints(studentData.totalPoints))} px-4 py-2 rounded-full text-white`}
                 >
-                  <span className="text-lg">{getBadgeIcon(studentData.badge)}</span>
-                  <span className="text-sm font-bold">{studentData.badge}</span>
+                  <img 
+                      src={getMedalIcon(getBadgeFromPoints(studentData.totalPoints))} 
+                      alt={`${getBadgeFromPoints(studentData.totalPoints)} Shield`}
+                    className="w-6 h-6 object-contain"
+                  />
+                    <span className="text-sm font-bold">{getBadgeFromPoints(studentData.totalPoints)}</span>
+                  </motion.div>
                 </motion.div>
-              </motion.div>
+              )}
 
               {/* Sign Out Button */}
               <button
@@ -492,88 +496,266 @@ const Dashboard = () => {
         animate="visible"
         className="container mx-auto px-4 py-8"
       >
-
-
-        {/* Dashboard Cards */}
+        {/* Welcome Hero Section */}
         <motion.div
           variants={itemVariants}
-          className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+          className="mb-12"
         >
-          {dashboardCards.map((card, index) => (
+          <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 border border-white/50 shadow-lg">
+            {/* Shield Progress Bar */}
             <motion.div
-              key={card.id}
               variants={itemVariants}
-              className="group cursor-pointer"
-              onClick={() => handleCardClick(card.route)}
-              whileHover={{ 
-                scale: 1.05,
-                y: -10,
-                boxShadow: "0 20px 40px rgba(0,0,0,0.1)"
-              }}
-              whileTap={{ scale: 0.95 }}
+              className="mb-6"
             >
-              <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 border border-white/50 shadow-lg h-full">
-                <div className="flex items-center justify-center mb-6">
-                  <motion.div
-                    className={`w-16 h-16 bg-gradient-to-r ${card.gradient} rounded-2xl flex items-center justify-center text-white`}
-                    animate={{
-                      rotate: [0, 5, -5, 0],
-                      scale: [1, 1.05, 1]
-                    }}
-                    transition={{ duration: 3, repeat: Infinity, delay: index * 0.2 }}
-                  >
-                    {card.icon}
-                  </motion.div>
+              <ShieldProgressBar currentPoints={studentData.totalPoints} />
+            </motion.div>
+          </div>
+        </motion.div>
+
+        {/* Quick Action Cards */}
+        <motion.div
+          variants={itemVariants}
+          className="grid md:grid-cols-3 lg:grid-cols-3 gap-6"
+        >
+          {/* Daily Streak Card */}
+          <motion.div
+            className="group cursor-pointer"
+            onClick={() => handleCardClick('/streak')}
+            whileHover={{ 
+              scale: 1.02,
+              y: -5,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+            }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">🔥 Daily Streak</h3>
+                  <p className="text-purple-100">Challenge your mind today</p>
                 </div>
-
-                <h3 className="text-2xl font-bold text-gray-800 mb-3">{card.title}</h3>
-                <p className="text-gray-600 mb-6">{card.description}</p>
-
                 <motion.div
-                  className="flex items-center text-purple-600 font-semibold group-hover:text-purple-700 transition-colors"
                   animate={{
-                    x: [0, 5, 0]
+                    scale: [1, 1.1, 1],
+                    rotate: [0, 10, -10, 0]
                   }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <span>Explore</span>
-                  <ArrowRight className="w-5 h-5 ml-2" />
+                  <Flame className="w-12 h-12" />
                 </motion.div>
               </div>
-            </motion.div>
-          ))}
+              <motion.div
+                className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
+                animate={{
+                  x: [0, 5, 0]
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <span>Start Challenge</span>
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </motion.div>
+            </div>
+          </motion.div>
+
+          {/* Quizzes Card */}
+              <motion.div
+            className="group cursor-pointer"
+            onClick={() => handleCardClick('/quiz')}
+            whileHover={{ 
+              scale: 1.02,
+              y: -5,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+            }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-3xl p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">📚 Quizzes</h3>
+                  <p className="text-green-100">Test your knowledge</p>
+                </div>
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <BookOpen className="w-12 h-12" />
+                </motion.div>
+              </div>
+              <motion.div
+                className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
+                animate={{
+                  x: [0, 5, 0]
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <span>Take Quiz</span>
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </motion.div>
+            </div>
+          </motion.div>
+
+          {/* Webinars Card */}
+          <motion.div
+            className="group cursor-pointer"
+            onClick={() => handleCardClick('/webinars')}
+            whileHover={{ 
+              scale: 1.02,
+              y: -5,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+            }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-3xl p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">🎥 Live Webinars</h3>
+                  <p className="text-blue-100">Join interactive sessions</p>
+                </div>
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <Play className="w-12 h-12" />
+                </motion.div>
+              </div>
+              <motion.div
+                className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
+                animate={{
+                  x: [0, 5, 0]
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <span>Join Session</span>
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </motion.div>
+            </div>
+          </motion.div>
+
+          {/* Workshops Card */}
+          <motion.div
+            className="group cursor-pointer"
+            onClick={() => handleCardClick('/workshops')}
+            whileHover={{ 
+              scale: 1.02,
+              y: -5,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+            }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-3xl p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">🛠️ Workshops</h3>
+                  <p className="text-orange-100">Hands-on learning</p>
+                </div>
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.1, 1],
+                    rotate: [0, 10, -10, 0]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <Timer className="w-12 h-12" />
+                </motion.div>
+              </div>
+              <motion.div
+                className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
+                animate={{
+                  x: [0, 5, 0]
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <span>Join Workshop</span>
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </motion.div>
+          </div>
         </motion.div>
 
-        {/* Motivational Quote */}
-        <motion.div
-          variants={itemVariants}
-          className="mt-12 text-center"
-        >
-          <motion.div
-            className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl p-8 text-white"
-            animate={{
-              boxShadow: [
-                "0 0 20px rgba(147, 51, 234, 0.3)",
-                "0 0 40px rgba(147, 51, 234, 0.5)",
-                "0 0 20px rgba(147, 51, 234, 0.3)"
-              ]
+          {/* Leaderboard Card */}
+            <motion.div
+              className="group cursor-pointer"
+            onClick={() => console.log('Navigate to /leaderboard')}
+              whileHover={{ 
+              scale: 1.02,
+              y: -5,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
             }}
-            transition={{ duration: 3, repeat: Infinity }}
+            whileTap={{ scale: 0.98 }}
           >
-            <motion.h3
-              className="text-2xl font-bold mb-4"
+            <div className="bg-gradient-to-r from-yellow-500 to-amber-500 rounded-3xl p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">🏆 Leaderboard</h3>
+                  <p className="text-yellow-100">See top performers</p>
+                </div>
+                <motion.div
+                  animate={{
+                    scale: [1, 1.1, 1],
+                    rotate: [0, 5, -5, 0]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <Trophy className="w-12 h-12" />
+                </motion.div>
+              </div>
+              <motion.div
+                className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
+                animate={{
+                  x: [0, 5, 0]
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <span>View Rankings</span>
+                <ArrowRight className="w-5 h-5 ml-2" />
+            </motion.div>
+            </div>
+        </motion.div>
+
+          {/* Report Card */}
+          <motion.div
+            className="group cursor-pointer"
+            onClick={() => console.log('Navigate to /report')}
+            whileHover={{ 
+              scale: 1.02,
+              y: -5,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+            }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="bg-gradient-to-r from-teal-500 to-cyan-500 rounded-3xl p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">📊 Report</h3>
+                  <p className="text-teal-100">Track your progress</p>
+                </div>
+                <motion.div
+                  animate={{
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <BarChart3 className="w-12 h-12" />
+                </motion.div>
+              </div>
+              <motion.div
+                className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
               animate={{
-                scale: [1, 1.05, 1]
+                  x: [0, 5, 0]
               }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              💡 "The mind is not a vessel to be filled, but a fire to be kindled."
-            </motion.h3>
-            <p className="text-purple-100 text-lg">
-              Keep challenging yourself every day and watch your critical thinking skills soar!
-            </p>
+                <span>View Report</span>
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </motion.div>
+            </div>
           </motion.div>
         </motion.div>
+
+
       </motion.div>
     </div>
   );
