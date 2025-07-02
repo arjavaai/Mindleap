@@ -205,7 +205,7 @@ const Leaderboard = () => {
                         <p className="text-gray-600 text-sm">{student.profileSubtitle}</p>
                         <div className="flex gap-4 text-xs text-gray-500 mt-1">
                           <span>ID: {student.studentId}</span>
-                          <span>User: {student.userId}</span>
+                          
                         </div>
                       </div>
                     </div>
