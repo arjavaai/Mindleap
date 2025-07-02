@@ -23,11 +23,13 @@ import {
   BookOpen,
   Award,
   TrendingUp,
-  Sparkles
+  Sparkles,
+  User
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import ShieldProgressBar from '../components/ui/ShieldProgressBar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 
 interface StudentData {
   streakCount: number;
@@ -53,6 +55,7 @@ const Dashboard = () => {
     questionsAnswered: 0
   });
   const [loading, setLoading] = useState(true);
+  const [profileData, setProfileData] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -73,53 +76,46 @@ const Dashboard = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [user]);
 
-    const fetchStudentData = async () => {
-      if (user) {
-        try {
-          const studentRef = doc(db, 'students', user.uid);
-          const studentSnap = await getDoc(studentRef);
+  const fetchStudentData = async () => {
+    if (user) {
+      try {
+        const studentRef = doc(db, 'students', user.uid);
+        const studentSnap = await getDoc(studentRef);
+        
+        if (studentSnap.exists()) {
+          const data = studentSnap.data();
           
-          if (studentSnap.exists()) {
-            const data = studentSnap.data();
-            
-            // Fetch daily streak records to calculate current streak and total points
-            const streakRecords = await fetchStreakRecords();
+          // Set profile data for modal
+          setProfileData(data);
           
-          // Also get the stored totals from dailyStreaks collection for accuracy
-          const userStreakDoc = await getDoc(doc(db, 'dailyStreaks', user.uid));
-          let currentStreak = 0;
-          let totalPoints = 0;
+          // Fetch daily streak records to calculate current streak and total points
+          const streakRecords = await fetchStreakRecords();
+        
+        // Also get the stored totals from dailyStreaks collection for accuracy
+        const userStreakDoc = await getDoc(doc(db, 'dailyStreaks', user.uid));
+        let currentStreak = 0;
+        let totalPoints = 0;
+        
+        if (userStreakDoc.exists()) {
+          const streakData = userStreakDoc.data();
+          currentStreak = streakData.currentStreak || 0;
+          totalPoints = streakData.totalPoints || 0;
+        } else {
+          // Fallback to calculated values if no stored data
+          currentStreak = calculateCurrentStreak(streakRecords);
+          totalPoints = streakRecords.reduce((total, record) => total + (record.points || 0), 0);
+        }
+        
+          const questionsAnswered = streakRecords.length;
           
-          if (userStreakDoc.exists()) {
-            const streakData = userStreakDoc.data();
-            currentStreak = streakData.currentStreak || 0;
-            totalPoints = streakData.totalPoints || 0;
-          } else {
-            // Fallback to calculated values if no stored data
-            currentStreak = calculateCurrentStreak(streakRecords);
-            totalPoints = streakRecords.reduce((total, record) => total + (record.points || 0), 0);
-          }
-          
-            const questionsAnswered = streakRecords.length;
-            
-            setStudentData({
-              streakCount: currentStreak,
-              totalPoints: totalPoints,
-            badge: getBadgeFromPoints(totalPoints),
-              name: data.name || data.studentId || user.email?.split('@')[0] || 'Student',
-              questionsAnswered: questionsAnswered
-            });
-          } else {
-            setStudentData({
-              streakCount: 0,
-              totalPoints: 0,
-            badge: null,
-              name: user.email?.split('@')[0] || 'Student',
-              questionsAnswered: 0
-            });
-          }
-        } catch (error) {
-          console.error('Error fetching student data:', error);
+          setStudentData({
+            streakCount: currentStreak,
+            totalPoints: totalPoints,
+          badge: getBadgeFromPoints(totalPoints),
+            name: data.name || data.studentId || user.email?.split('@')[0] || 'Student',
+            questionsAnswered: questionsAnswered
+          });
+        } else {
           setStudentData({
             streakCount: 0,
             totalPoints: 0,
@@ -128,9 +124,19 @@ const Dashboard = () => {
             questionsAnswered: 0
           });
         }
+      } catch (error) {
+        console.error('Error fetching student data:', error);
+        setStudentData({
+          streakCount: 0,
+          totalPoints: 0,
+        badge: null,
+          name: user.email?.split('@')[0] || 'Student',
+          questionsAnswered: 0
+        });
       }
-      setLoading(false);
-    };
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
     fetchStudentData();
@@ -476,6 +482,68 @@ const Dashboard = () => {
                   </motion.div>
                 </motion.div>
               )}
+
+              {/* Profile Modal */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.05 }}
+                    className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-white hover:from-purple-600 hover:to-pink-600 transition-all duration-200"
+                  >
+                    <User className="w-5 h-5" />
+                  </motion.button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-bold text-center mb-4">Student Profile</DialogTitle>
+                  </DialogHeader>
+                  {profileData && (
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <User className="w-10 h-10 text-white" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800">{studentData.name}</h3>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <label className="text-sm font-medium text-gray-600">Student ID</label>
+                          <p className="text-gray-800">{profileData.studentId || 'Not assigned'}</p>
+                        </div>
+                        
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <label className="text-sm font-medium text-gray-600">School</label>
+                          <p className="text-gray-800">{profileData.school || profileData.schoolCode || 'Not assigned'}</p>
+                        </div>
+                        
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <label className="text-sm font-medium text-gray-600">District</label>
+                          <p className="text-gray-800">{profileData.district || profileData.districtCode || 'Not assigned'}</p>
+                        </div>
+                        
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <label className="text-sm font-medium text-gray-600">State</label>
+                          <p className="text-gray-800">{profileData.state || 'Not assigned'}</p>
+                        </div>
+                        
+                        <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-3 rounded-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-600">Total Points</span>
+                            <span className="text-lg font-bold text-purple-600">{studentData.totalPoints}</span>
+                          </div>
+                          <div className="flex justify-between items-center mt-1">
+                            <span className="text-sm font-medium text-gray-600">Current Streak</span>
+                            <span className="text-lg font-bold text-orange-600">{studentData.streakCount} days</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
 
               {/* Sign Out Button */}
               <button
