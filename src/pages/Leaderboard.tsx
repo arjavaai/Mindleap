@@ -30,6 +30,7 @@ const Leaderboard = () => {
     if (!user) return;
     
     console.log('=== LEADERBOARD DEBUG START ===');
+    console.log('Current user ID:', user?.uid);
     
     try {
       // First, get current user's school information
@@ -41,6 +42,14 @@ const Leaderboard = () => {
         setCurrentUserSchool(userSchoolCode);
         console.log('Current user school code:', userSchoolCode);
         console.log('Current user data:', userData);
+        
+        // ALSO CHECK CURRENT USER'S DAILY STREAK DATA
+        const currentUserStreakDoc = await getDoc(doc(db, 'dailyStreaks', user.uid));
+        if (currentUserStreakDoc.exists()) {
+          console.log('Current user streak data:', currentUserStreakDoc.data());
+        } else {
+          console.log('Current user has NO streak data in dailyStreaks collection');
+        }
       }
 
       // If no school code found, show all students as fallback
@@ -68,12 +77,13 @@ const Leaderboard = () => {
           
           if (streakDoc.exists()) {
             const streakData = streakDoc.data();
-            console.log(`Streak data exists for ${studentData.name}:`, streakData);
+            console.log(`Streak data exists for ${studentData.name} (${studentDoc.id}):`, streakData);
             
+            // Use stored values FIRST (exactly like DailyStreak page)
             totalPoints = streakData.totalPoints || 0;
             currentStreak = streakData.currentStreak || 0;
             
-            console.log(`Initial totalPoints: ${totalPoints}, currentStreak: ${currentStreak}`);
+            console.log(`Stored values for ${studentData.name} - totalPoints: ${totalPoints}, currentStreak: ${currentStreak}`);
 
             // Only calculate if no stored totalPoints (same logic as DailyStreak)
             if (totalPoints === 0 && streakData.records) {
