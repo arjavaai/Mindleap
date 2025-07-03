@@ -94,32 +94,19 @@ const Dashboard = () => {
           // Fetch daily streak records to calculate current streak and total points
           const streakRecords = await fetchStreakRecords();
         
-        // Get the stored totals from dailyStreaks collection (SAME LOGIC AS DAILY STREAK PAGE)
+        // Also get the stored totals from dailyStreaks collection for accuracy
         const userStreakDoc = await getDoc(doc(db, 'dailyStreaks', user.uid));
         let currentStreak = 0;
         let totalPoints = 0;
         
         if (userStreakDoc.exists()) {
           const streakData = userStreakDoc.data();
-          
-          console.log('Dashboard - Streak data:', streakData);
-          
-          // Use stored values FIRST (exactly like DailyStreak page)
           currentStreak = streakData.currentStreak || 0;
           totalPoints = streakData.totalPoints || 0;
-          
-          console.log('Dashboard - Stored values:', { currentStreak, totalPoints });
-          
-          // Only calculate if no stored totalPoints (same logic as DailyStreak)
-          if (totalPoints === 0 && streakData.records) {
-            const records = Object.values(streakData.records) as any[];
-            totalPoints = records.reduce((sum: number, record: any) => {
-              return sum + (typeof record?.points === 'number' ? record.points : 0);
-            }, 0);
-            console.log('Dashboard - Calculated from records:', totalPoints);
-          }
         } else {
-          console.log('Dashboard - No streak document found');
+          // Fallback to calculated values if no stored data
+          currentStreak = calculateCurrentStreak(streakRecords);
+          totalPoints = streakRecords.reduce((total, record) => total + (record.points || 0), 0);
         }
         
           const questionsAnswered = streakRecords.length;

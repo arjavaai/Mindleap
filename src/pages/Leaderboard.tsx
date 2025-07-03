@@ -28,10 +28,6 @@ const Leaderboard = () => {
   }, [user]);
   const fetchLeaderboardData = async () => {
     if (!user) return;
-    
-    console.log('=== LEADERBOARD DEBUG START ===');
-    console.log('Current user ID:', user?.uid);
-    
     try {
       // First, get current user's school information
       const currentUserDoc = await getDoc(doc(db, 'students', user.uid));
@@ -41,15 +37,6 @@ const Leaderboard = () => {
         userSchoolCode = userData.schoolCode || userData.school || userData.districtCode || userData.district || '';
         setCurrentUserSchool(userSchoolCode);
         console.log('Current user school code:', userSchoolCode);
-        console.log('Current user data:', userData);
-        
-        // ALSO CHECK CURRENT USER'S DAILY STREAK DATA
-        const currentUserStreakDoc = await getDoc(doc(db, 'dailyStreaks', user.uid));
-        if (currentUserStreakDoc.exists()) {
-          console.log('Current user streak data:', currentUserStreakDoc.data());
-        } else {
-          console.log('Current user has NO streak data in dailyStreaks collection');
-        }
       }
 
       // If no school code found, show all students as fallback
@@ -59,49 +46,36 @@ const Leaderboard = () => {
 
       // Get all students from the same school
       const studentsSnapshot = await getDocs(collection(db, 'students'));
-      console.log(`Found ${studentsSnapshot.docs.length} total students in database`);
-      
       const schoolStudents: any[] = [];
       for (const studentDoc of studentsSnapshot.docs) {
         const studentData = studentDoc.data();
-        console.log(`Processing student: ${studentData.name || studentDoc.id}`, studentData);
 
         // Filter by same school if user has school, otherwise show all students
         const shouldInclude = !userSchoolCode || studentData.schoolCode === userSchoolCode || studentData.school === userSchoolCode || studentData.districtCode === userSchoolCode || studentData.district === userSchoolCode;
         if (shouldInclude) {
           // Get daily streak data for this student
-          console.log(`Fetching streak data for student: ${studentData.name || studentDoc.id} (ID: ${studentDoc.id})`);
           const streakDoc = await getDoc(doc(db, 'dailyStreaks', studentDoc.id));
           let totalPoints = 0;
           let currentStreak = 0;
           
           if (streakDoc.exists()) {
             const streakData = streakDoc.data();
-            console.log(`Streak data exists for ${studentData.name} (${studentDoc.id}):`, streakData);
-            
-            // Use stored values FIRST (exactly like DailyStreak page)
             totalPoints = streakData.totalPoints || 0;
             currentStreak = streakData.currentStreak || 0;
-            
-            console.log(`Stored values for ${studentData.name} - totalPoints: ${totalPoints}, currentStreak: ${currentStreak}`);
 
-            // Only calculate if no stored totalPoints (same logic as DailyStreak)
+            // If no stored total, calculate from records (same logic as dashboard)
             if (totalPoints === 0 && streakData.records) {
               const records = Object.values(streakData.records) as any[];
-              console.log(`Found ${records.length} records for ${studentData.name}:`, records);
-              
-              totalPoints = records.reduce((sum: number, record: any) => {
-                return sum + (typeof record?.points === 'number' ? record.points : 0);
+              totalPoints = records.reduce((total, record) => {
+                return total + (record.points || (record.isCorrect ? 200 : 100));
               }, 0);
-              console.log(`Calculated points for ${studentData.name}: ${totalPoints} from ${records.length} records`);
-            } else if (totalPoints > 0) {
-              console.log(`Using stored points for ${studentData.name}: ${totalPoints}`);
+              console.log(`Calculated points for ${studentData.name || studentDoc.id}: ${totalPoints} from ${records.length} records`);
+            } else {
+              console.log(`Stored points for ${studentData.name || studentDoc.id}: ${totalPoints}`);
             }
           } else {
             console.log(`No streak data found for ${studentData.name || studentDoc.id}`);
           }
-          console.log(`Final points for ${studentData.name}: ${totalPoints}`);
-          
           schoolStudents.push({
             id: studentDoc.id,
             name: studentData.name || studentData.studentId || 'Unknown Student',
@@ -120,10 +94,6 @@ const Leaderboard = () => {
         ...student,
         rank: index + 1
       }));
-      
-      console.log('Final leaderboard data:', rankedStudents);
-      console.log('=== LEADERBOARD DEBUG END ===');
-      
       setStudents(rankedStudents);
     } catch (error) {
       console.error('Error fetching leaderboard data:', error);
@@ -140,7 +110,7 @@ const Leaderboard = () => {
     else if (points >= 1000) pointsTitle = 'Bronze Warrior';
     else if (points >= 500) pointsTitle = 'Rising Star';
     else if (points >= 100) pointsTitle = 'Getting Started';
-    else pointsTitle = 'Learning Explorer'; // Changed from "New Student"
+    else pointsTitle = 'New Student';
 
     // Add streak info if significant
     if (streak >= 30) return `${pointsTitle} • ${streak} Day Legend`;
