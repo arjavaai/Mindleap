@@ -453,10 +453,7 @@ const DailyStreak = () => {
                 <span className="font-bold">{currentStreak} Day Streak</span>
               </div>
               
-                            <div className={`flex items-center gap-2 bg-gradient-to-r ${getBadgeColor(getBadgeFromPoints(totalPoints))} px-4 py-2 rounded-full text-white`}>
-                <img src={getMedalIcon(getBadgeFromPoints(totalPoints))} alt={`${getBadgeFromPoints(totalPoints)} Shield`} className="w-6 h-6 object-contain" />
-                <span className="font-bold">{getBadgeFromPoints(totalPoints)}</span>
-              </div>
+                            
             </motion.div>
           </div>
         </div>
