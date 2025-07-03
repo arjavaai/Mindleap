@@ -102,9 +102,24 @@ const Dashboard = () => {
         if (userStreakDoc.exists()) {
           const streakData = userStreakDoc.data();
           console.log('Dashboard - Daily Streak Data:', streakData);
+          
+          // Use stored values first
           currentStreak = streakData.currentStreak || 0;
           totalPoints = streakData.totalPoints || 0;
+          
+          // Also calculate from records like Daily Streak page does
+          const records = streakData.records || {};
+          const calculatedTotalPoints = Object.values(records).reduce((sum: number, record: any) => {
+            return sum + (typeof record?.points === 'number' ? record.points : 0);
+          }, 0);
+          
+          // Use calculated points if available and different from stored
+          if (Number(calculatedTotalPoints) > 0) {
+            totalPoints = Number(calculatedTotalPoints);
+          }
+          
           console.log('Dashboard - Stored values - Streak:', currentStreak, 'Points:', totalPoints);
+          console.log('Dashboard - Calculated total points:', calculatedTotalPoints);
         } else {
           // Fallback to calculated values if no stored data
           console.log('Dashboard - No stored data, calculating from records:', streakRecords);
