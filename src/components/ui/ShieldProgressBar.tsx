@@ -8,6 +8,7 @@ interface ShieldProgressBarProps {
 }
 
 const ShieldProgressBar: React.FC<ShieldProgressBarProps> = ({ currentPoints, className = '' }) => {
+  console.log('ShieldProgressBar received currentPoints:', currentPoints);
   const shields = [
     {
       name: 'Student',

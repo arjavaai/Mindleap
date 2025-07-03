@@ -101,12 +101,16 @@ const Dashboard = () => {
         
         if (userStreakDoc.exists()) {
           const streakData = userStreakDoc.data();
+          console.log('Dashboard - Daily Streak Data:', streakData);
           currentStreak = streakData.currentStreak || 0;
           totalPoints = streakData.totalPoints || 0;
+          console.log('Dashboard - Stored values - Streak:', currentStreak, 'Points:', totalPoints);
         } else {
           // Fallback to calculated values if no stored data
+          console.log('Dashboard - No stored data, calculating from records:', streakRecords);
           currentStreak = calculateCurrentStreak(streakRecords);
           totalPoints = streakRecords.reduce((total, record) => total + (record.points || 0), 0);
+          console.log('Dashboard - Calculated values - Streak:', currentStreak, 'Points:', totalPoints);
         }
         
           const questionsAnswered = streakRecords.length;
