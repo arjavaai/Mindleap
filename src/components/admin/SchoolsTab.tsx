@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, School, MapPin, Hash, Check, Edit, Trash2, Upload, Filter, Table, FileDown, Search } from 'lucide-react';
+import { Plus, School, MapPin, Hash, Check, Edit, Trash2, Upload, Filter, Table, FileDown, Search, Eye } from 'lucide-react';
 import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Textarea } from '../ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
 
@@ -30,6 +31,15 @@ interface School {
   districtName: string;
   state: string;
   status: 'active' | 'inactive';
+  address?: string;
+  schoolType?: 'Residential' | 'Non-Residential';
+  boardType?: 'SSC' | 'CBSE' | 'ICSE' | 'IGCSE';
+  totalStudents?: number;
+  principalName?: string;
+  principalContact?: string;
+  poc?: string;
+  schoolEmail?: string;
+  hasComputerLab?: 'Yes' | 'No';
 }
 
 const SchoolsTab = () => {
@@ -37,9 +47,11 @@ const SchoolsTab = () => {
   const [states, setStates] = useState<State[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewingSchool, setViewingSchool] = useState<School | null>(null);
   
   // Filter states
   const [filterState, setFilterState] = useState('all');
@@ -50,7 +62,16 @@ const SchoolsTab = () => {
     schoolCode: '', 
     districtCode: '',
     districtName: '',
-    state: ''
+    state: '',
+    address: '',
+    schoolType: '' as 'Residential' | 'Non-Residential' | '',
+    boardType: '' as 'SSC' | 'CBSE' | 'ICSE' | 'IGCSE' | '',
+    totalStudents: '',
+    principalName: '',
+    principalContact: '',
+    poc: '',
+    schoolEmail: '',
+    hasComputerLab: '' as 'Yes' | 'No' | ''
   });
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [addedSchool, setAddedSchool] = useState<School | null>(null);
@@ -174,6 +195,15 @@ const SchoolsTab = () => {
         districtName: selectedDistrict?.districtName || newSchool.districtName,
         state: newSchool.state.trim(),
         status: 'active',
+        address: newSchool.address.trim(),
+        schoolType: newSchool.schoolType,
+        boardType: newSchool.boardType,
+        totalStudents: newSchool.totalStudents ? parseInt(newSchool.totalStudents) : null,
+        principalName: newSchool.principalName.trim(),
+        principalContact: newSchool.principalContact.trim(),
+        poc: newSchool.poc.trim(),
+        schoolEmail: newSchool.schoolEmail.trim(),
+        hasComputerLab: newSchool.hasComputerLab,
         createdAt: new Date().toISOString()
       });
 
@@ -184,12 +214,25 @@ const SchoolsTab = () => {
         districtCode: newSchool.districtCode.trim(),
         districtName: selectedDistrict?.districtName || newSchool.districtName,
         state: newSchool.state.trim(),
-        status: 'active' as const
+        status: 'active' as const,
+        address: newSchool.address.trim(),
+        schoolType: newSchool.schoolType as 'Residential' | 'Non-Residential',
+        boardType: newSchool.boardType as 'SSC' | 'CBSE' | 'ICSE' | 'IGCSE',
+        totalStudents: newSchool.totalStudents ? parseInt(newSchool.totalStudents) : undefined,
+        principalName: newSchool.principalName.trim(),
+        principalContact: newSchool.principalContact.trim(),
+        poc: newSchool.poc.trim(),
+        schoolEmail: newSchool.schoolEmail.trim(),
+        hasComputerLab: newSchool.hasComputerLab as 'Yes' | 'No'
       };
 
       setAddedSchool(schoolData);
       setSchools(prev => [...prev, schoolData].sort((a, b) => a.name.localeCompare(b.name)));
-      setNewSchool({ name: '', schoolCode: '', districtCode: '', districtName: '', state: '' });
+      setNewSchool({ 
+        name: '', schoolCode: '', districtCode: '', districtName: '', state: '',
+        address: '', schoolType: '' as any, boardType: '' as any, totalStudents: '',
+        principalName: '', principalContact: '', poc: '', schoolEmail: '', hasComputerLab: '' as any
+      });
       setIsAddModalOpen(false);
       setIsSuccessModalOpen(true);
 
@@ -216,9 +259,23 @@ const SchoolsTab = () => {
       schoolCode: school.schoolCode,
       districtCode: school.districtCode,
       districtName: school.districtName,
-      state: school.state || ''
+      state: school.state || '',
+      address: school.address || '',
+      schoolType: school.schoolType || '' as any,
+      boardType: school.boardType || '' as any,
+      totalStudents: school.totalStudents?.toString() || '',
+      principalName: school.principalName || '',
+      principalContact: school.principalContact || '',
+      poc: school.poc || '',
+      schoolEmail: school.schoolEmail || '',
+      hasComputerLab: school.hasComputerLab || '' as any
     });
     setIsEditModalOpen(true);
+  };
+
+  const handleViewSchool = (school: School) => {
+    setViewingSchool(school);
+    setIsViewModalOpen(true);
   };
 
   const handleUpdateSchool = async () => {
@@ -263,6 +320,15 @@ const SchoolsTab = () => {
         districtCode: newSchool.districtCode.trim(),
         districtName: selectedDistrict?.districtName || newSchool.districtName,
         state: newSchool.state.trim(),
+        address: newSchool.address.trim(),
+        schoolType: newSchool.schoolType,
+        boardType: newSchool.boardType,
+        totalStudents: newSchool.totalStudents ? parseInt(newSchool.totalStudents) : null,
+        principalName: newSchool.principalName.trim(),
+        principalContact: newSchool.principalContact.trim(),
+        poc: newSchool.poc.trim(),
+        schoolEmail: newSchool.schoolEmail.trim(),
+        hasComputerLab: newSchool.hasComputerLab,
         updatedAt: new Date().toISOString()
       });
 
@@ -272,7 +338,16 @@ const SchoolsTab = () => {
         schoolCode: newSchool.schoolCode.trim(),
         districtCode: newSchool.districtCode.trim(),
         districtName: selectedDistrict?.districtName || newSchool.districtName,
-        state: newSchool.state.trim()
+        state: newSchool.state.trim(),
+        address: newSchool.address.trim(),
+        schoolType: newSchool.schoolType as 'Residential' | 'Non-Residential',
+        boardType: newSchool.boardType as 'SSC' | 'CBSE' | 'ICSE' | 'IGCSE',
+        totalStudents: newSchool.totalStudents ? parseInt(newSchool.totalStudents) : undefined,
+        principalName: newSchool.principalName.trim(),
+        principalContact: newSchool.principalContact.trim(),
+        poc: newSchool.poc.trim(),
+        schoolEmail: newSchool.schoolEmail.trim(),
+        hasComputerLab: newSchool.hasComputerLab as 'Yes' | 'No'
       };
 
       setSchools(prev => 
@@ -282,7 +357,11 @@ const SchoolsTab = () => {
       );
 
       setEditingSchool(null);
-      setNewSchool({ name: '', schoolCode: '', districtCode: '', districtName: '', state: '' });
+      setNewSchool({ 
+        name: '', schoolCode: '', districtCode: '', districtName: '', state: '',
+        address: '', schoolType: '' as any, boardType: '' as any, totalStudents: '',
+        principalName: '', principalContact: '', poc: '', schoolEmail: '', hasComputerLab: '' as any
+      });
       setIsEditModalOpen(false);
 
       toast({
@@ -584,28 +663,27 @@ const SchoolsTab = () => {
                       <Button
                         size="sm"
                         variant="outline"
+                        onClick={() => handleViewSchool(school)}
+                        className="w-8 h-8 p-0 text-blue-600 hover:text-blue-700 hover:border-blue-300"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
                         onClick={() => handleEditSchool(school)}
                         className="w-8 h-8 p-0"
+                        title="Edit School"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => toggleSchoolStatus(school)}
-                        className={`w-8 h-8 p-0 ${
-                          school.status === 'active' 
-                            ? 'text-red-600 hover:text-red-700 hover:border-red-300' 
-                            : 'text-green-600 hover:text-green-700 hover:border-green-300'
-                        }`}
-                      >
-                        {school.status === 'active' ? '✕' : '✓'}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
                         onClick={() => handleDeleteSchool(school)}
                         className="w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:border-red-300"
+                        title="Delete School"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -638,7 +716,7 @@ const SchoolsTab = () => {
 
       {/* Add School Modal */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Plus className="w-5 h-5 text-blue-600" />
@@ -646,87 +724,217 @@ const SchoolsTab = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  School Name *
+                </label>
+                <Input
+                  placeholder="Enter school name"
+                  value={newSchool.name}
+                  onChange={(e) => setNewSchool(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  School Code * (3 digits)
+                </label>
+                <Input
+                  placeholder="e.g., 001"
+                  value={newSchool.schoolCode}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 3);
+                    setNewSchool(prev => ({ ...prev, schoolCode: value }));
+                  }}
+                  maxLength={3}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  State *
+                </label>
+                <Select
+                  value={newSchool.state}
+                  onValueChange={(value) => {
+                    setNewSchool(prev => ({ 
+                      ...prev, 
+                      state: value, 
+                      districtCode: '',
+                      districtName: ''
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {states.map((state) => (
+                      <SelectItem key={state.id} value={state.stateName}>
+                        {state.stateName} ({state.stateCode})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  District *
+                </label>
+                <Select
+                  value={newSchool.districtCode}
+                  onValueChange={(value) => {
+                    const selectedDistrict = availableDistricts.find(d => d.districtCode === value);
+                    setNewSchool(prev => ({ 
+                      ...prev, 
+                      districtCode: value,
+                      districtName: selectedDistrict?.districtName || ''
+                    }));
+                  }}
+                  disabled={!newSchool.state}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select district" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableDistricts.map((district) => (
+                      <SelectItem key={district.districtCode} value={district.districtCode}>
+                        {district.districtName} ({district.districtCode})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                School Name *
+                School Address
               </label>
-              <Input
-                placeholder="Enter school name"
-                value={newSchool.name}
-                onChange={(e) => setNewSchool(prev => ({ ...prev, name: e.target.value }))}
+              <Textarea
+                placeholder="Enter complete school address"
+                value={newSchool.address}
+                onChange={(e) => setNewSchool(prev => ({ ...prev, address: e.target.value }))}
+                rows={3}
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                School Code * (3 digits)
-              </label>
-              <Input
-                placeholder="e.g., 001"
-                value={newSchool.schoolCode}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '').slice(0, 3);
-                  setNewSchool(prev => ({ ...prev, schoolCode: value }));
-                }}
-                maxLength={3}
-              />
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  School Type / Category
+                </label>
+                <Select
+                  value={newSchool.schoolType}
+                  onValueChange={(value) => setNewSchool(prev => ({ ...prev, schoolType: value as any }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select school type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Residential">Residential</SelectItem>
+                    <SelectItem value="Non-Residential">Non-Residential</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                State *
-              </label>
-              <Select
-                value={newSchool.state}
-                onValueChange={(value) => {
-                  setNewSchool(prev => ({ 
-                    ...prev, 
-                    state: value, 
-                    districtCode: '',
-                    districtName: ''
-                  }));
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select state" />
-                </SelectTrigger>
-                <SelectContent>
-                  {states.map((state) => (
-                    <SelectItem key={state.id} value={state.stateName}>
-                      {state.stateName} ({state.stateCode})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Board Type
+                </label>
+                <Select
+                  value={newSchool.boardType}
+                  onValueChange={(value) => setNewSchool(prev => ({ ...prev, boardType: value as any }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select board type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SSC">SSC</SelectItem>
+                    <SelectItem value="CBSE">CBSE</SelectItem>
+                    <SelectItem value="ICSE">ICSE</SelectItem>
+                    <SelectItem value="IGCSE">IGCSE</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                District *
-              </label>
-              <Select
-                value={newSchool.districtCode}
-                onValueChange={(value) => {
-                  const selectedDistrict = availableDistricts.find(d => d.districtCode === value);
-                  setNewSchool(prev => ({ 
-                    ...prev, 
-                    districtCode: value,
-                    districtName: selectedDistrict?.districtName || ''
-                  }));
-                }}
-                disabled={!newSchool.state}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select district" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableDistricts.map((district) => (
-                    <SelectItem key={district.districtCode} value={district.districtCode}>
-                      {district.districtName} ({district.districtCode})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Total Students
+                </label>
+                <Input
+                  type="number"
+                  placeholder="Enter total number of students"
+                  value={newSchool.totalStudents}
+                  onChange={(e) => setNewSchool(prev => ({ ...prev, totalStudents: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  In-house Computer Lab
+                </label>
+                <Select
+                  value={newSchool.hasComputerLab}
+                  onValueChange={(value) => setNewSchool(prev => ({ ...prev, hasComputerLab: value as any }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select option" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Yes">Yes</SelectItem>
+                    <SelectItem value="No">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Principal Name
+                </label>
+                <Input
+                  placeholder="Enter principal's name"
+                  value={newSchool.principalName}
+                  onChange={(e) => setNewSchool(prev => ({ ...prev, principalName: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Principal Contact Number
+                </label>
+                <Input
+                  type="tel"
+                  placeholder="Enter principal's contact number"
+                  value={newSchool.principalContact}
+                  onChange={(e) => setNewSchool(prev => ({ ...prev, principalContact: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  POC (Point of Contact)
+                </label>
+                <Input
+                  placeholder="Enter point of contact"
+                  value={newSchool.poc}
+                  onChange={(e) => setNewSchool(prev => ({ ...prev, poc: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  School Email ID
+                </label>
+                <Input
+                  type="email"
+                  placeholder="Enter school email address"
+                  value={newSchool.schoolEmail}
+                  onChange={(e) => setNewSchool(prev => ({ ...prev, schoolEmail: e.target.value }))}
+                />
+              </div>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
@@ -734,7 +942,11 @@ const SchoolsTab = () => {
                 variant="outline"
                 onClick={() => {
                   setIsAddModalOpen(false);
-                  setNewSchool({ name: '', schoolCode: '', districtCode: '', districtName: '', state: '' });
+                  setNewSchool({ 
+                    name: '', schoolCode: '', districtCode: '', districtName: '', state: '',
+                    address: '', schoolType: '' as any, boardType: '' as any, totalStudents: '',
+                    principalName: '', principalContact: '', poc: '', schoolEmail: '', hasComputerLab: '' as any
+                  });
                 }}
                 disabled={isLoading}
               >
@@ -754,7 +966,7 @@ const SchoolsTab = () => {
 
       {/* Edit School Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Edit className="w-5 h-5 text-blue-600" />
@@ -762,87 +974,217 @@ const SchoolsTab = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  School Name *
+                </label>
+                <Input
+                  placeholder="Enter school name"
+                  value={newSchool.name}
+                  onChange={(e) => setNewSchool(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  School Code * (3 digits)
+                </label>
+                <Input
+                  placeholder="e.g., 001"
+                  value={newSchool.schoolCode}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 3);
+                    setNewSchool(prev => ({ ...prev, schoolCode: value }));
+                  }}
+                  maxLength={3}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  State *
+                </label>
+                <Select
+                  value={newSchool.state}
+                  onValueChange={(value) => {
+                    setNewSchool(prev => ({ 
+                      ...prev, 
+                      state: value, 
+                      districtCode: '',
+                      districtName: ''
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {states.map((state) => (
+                      <SelectItem key={state.id} value={state.stateName}>
+                        {state.stateName} ({state.stateCode})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  District *
+                </label>
+                <Select
+                  value={newSchool.districtCode}
+                  onValueChange={(value) => {
+                    const selectedDistrict = availableDistricts.find(d => d.districtCode === value);
+                    setNewSchool(prev => ({ 
+                      ...prev, 
+                      districtCode: value,
+                      districtName: selectedDistrict?.districtName || ''
+                    }));
+                  }}
+                  disabled={!newSchool.state}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select district" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableDistricts.map((district) => (
+                      <SelectItem key={district.districtCode} value={district.districtCode}>
+                        {district.districtName} ({district.districtCode})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                School Name *
+                School Address
               </label>
-              <Input
-                placeholder="Enter school name"
-                value={newSchool.name}
-                onChange={(e) => setNewSchool(prev => ({ ...prev, name: e.target.value }))}
+              <Textarea
+                placeholder="Enter complete school address"
+                value={newSchool.address}
+                onChange={(e) => setNewSchool(prev => ({ ...prev, address: e.target.value }))}
+                rows={3}
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                School Code * (3 digits)
-              </label>
-              <Input
-                placeholder="e.g., 001"
-                value={newSchool.schoolCode}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '').slice(0, 3);
-                  setNewSchool(prev => ({ ...prev, schoolCode: value }));
-                }}
-                maxLength={3}
-              />
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  School Type / Category
+                </label>
+                <Select
+                  value={newSchool.schoolType}
+                  onValueChange={(value) => setNewSchool(prev => ({ ...prev, schoolType: value as any }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select school type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Residential">Residential</SelectItem>
+                    <SelectItem value="Non-Residential">Non-Residential</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                State *
-              </label>
-              <Select
-                value={newSchool.state}
-                onValueChange={(value) => {
-                  setNewSchool(prev => ({ 
-                    ...prev, 
-                    state: value, 
-                    districtCode: '',
-                    districtName: ''
-                  }));
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select state" />
-                </SelectTrigger>
-                <SelectContent>
-                  {states.map((state) => (
-                    <SelectItem key={state.id} value={state.stateName}>
-                      {state.stateName} ({state.stateCode})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Board Type
+                </label>
+                <Select
+                  value={newSchool.boardType}
+                  onValueChange={(value) => setNewSchool(prev => ({ ...prev, boardType: value as any }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select board type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SSC">SSC</SelectItem>
+                    <SelectItem value="CBSE">CBSE</SelectItem>
+                    <SelectItem value="ICSE">ICSE</SelectItem>
+                    <SelectItem value="IGCSE">IGCSE</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                District *
-              </label>
-              <Select
-                value={newSchool.districtCode}
-                onValueChange={(value) => {
-                  const selectedDistrict = availableDistricts.find(d => d.districtCode === value);
-                  setNewSchool(prev => ({ 
-                    ...prev, 
-                    districtCode: value,
-                    districtName: selectedDistrict?.districtName || ''
-                  }));
-                }}
-                disabled={!newSchool.state}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select district" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableDistricts.map((district) => (
-                    <SelectItem key={district.districtCode} value={district.districtCode}>
-                      {district.districtName} ({district.districtCode})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Total Students
+                </label>
+                <Input
+                  type="number"
+                  placeholder="Enter total number of students"
+                  value={newSchool.totalStudents}
+                  onChange={(e) => setNewSchool(prev => ({ ...prev, totalStudents: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  In-house Computer Lab
+                </label>
+                <Select
+                  value={newSchool.hasComputerLab}
+                  onValueChange={(value) => setNewSchool(prev => ({ ...prev, hasComputerLab: value as any }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select option" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Yes">Yes</SelectItem>
+                    <SelectItem value="No">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Principal Name
+                </label>
+                <Input
+                  placeholder="Enter principal's name"
+                  value={newSchool.principalName}
+                  onChange={(e) => setNewSchool(prev => ({ ...prev, principalName: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Principal Contact Number
+                </label>
+                <Input
+                  type="tel"
+                  placeholder="Enter principal's contact number"
+                  value={newSchool.principalContact}
+                  onChange={(e) => setNewSchool(prev => ({ ...prev, principalContact: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  POC (Point of Contact)
+                </label>
+                <Input
+                  placeholder="Enter point of contact"
+                  value={newSchool.poc}
+                  onChange={(e) => setNewSchool(prev => ({ ...prev, poc: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  School Email ID
+                </label>
+                <Input
+                  type="email"
+                  placeholder="Enter school email address"
+                  value={newSchool.schoolEmail}
+                  onChange={(e) => setNewSchool(prev => ({ ...prev, schoolEmail: e.target.value }))}
+                />
+              </div>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
@@ -851,7 +1193,11 @@ const SchoolsTab = () => {
                 onClick={() => {
                   setIsEditModalOpen(false);
                   setEditingSchool(null);
-                  setNewSchool({ name: '', schoolCode: '', districtCode: '', districtName: '', state: '' });
+                  setNewSchool({ 
+                    name: '', schoolCode: '', districtCode: '', districtName: '', state: '',
+                    address: '', schoolType: '' as any, boardType: '' as any, totalStudents: '',
+                    principalName: '', principalContact: '', poc: '', schoolEmail: '', hasComputerLab: '' as any
+                  });
                 }}
                 disabled={isLoading}
               >
@@ -895,6 +1241,132 @@ const SchoolsTab = () => {
               Close
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View School Details Modal */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Eye className="w-5 h-5 text-blue-600" />
+              <span>School Details</span>
+            </DialogTitle>
+          </DialogHeader>
+          {viewingSchool && (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Basic Information</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">School Name</label>
+                      <p className="text-sm text-gray-900 mt-1">{viewingSchool.name}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">School Code</label>
+                      <p className="text-sm text-gray-900 mt-1 font-mono">{viewingSchool.schoolCode}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Status</label>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${
+                        viewingSchool.status === 'active' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {viewingSchool.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Location Details</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">State</label>
+                      <p className="text-sm text-gray-900 mt-1">{viewingSchool.state}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">District</label>
+                      <p className="text-sm text-gray-900 mt-1">{viewingSchool.districtName} ({viewingSchool.districtCode})</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Address</label>
+                      <p className="text-sm text-gray-900 mt-1">{viewingSchool.address || 'Not provided'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">School Details</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">School Type</label>
+                      <p className="text-sm text-gray-900 mt-1">{viewingSchool.schoolType || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Board Type</label>
+                      <p className="text-sm text-gray-900 mt-1">{viewingSchool.boardType || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Total Students</label>
+                      <p className="text-sm text-gray-900 mt-1">{viewingSchool.totalStudents || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Computer Lab</label>
+                      <p className="text-sm text-gray-900 mt-1">{viewingSchool.hasComputerLab || 'Not specified'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Contact Information</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Principal Name</label>
+                      <p className="text-sm text-gray-900 mt-1">{viewingSchool.principalName || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Principal Contact</label>
+                      <p className="text-sm text-gray-900 mt-1">{viewingSchool.principalContact || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Point of Contact</label>
+                      <p className="text-sm text-gray-900 mt-1">{viewingSchool.poc || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">School Email</label>
+                      <p className="text-sm text-gray-900 mt-1">{viewingSchool.schoolEmail || 'Not provided'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    setViewingSchool(null);
+                  }}
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    handleEditSchool(viewingSchool);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit School
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
