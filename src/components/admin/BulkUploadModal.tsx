@@ -11,6 +11,7 @@ import { Progress } from '../ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { generatePassword } from '../../utils/studentIdGenerator';
 import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 
 interface District {
   districtName: string;
@@ -39,6 +40,13 @@ interface BulkStudent {
   stateCode: string;
   schoolCode: string;
   districtCode: string;
+  class?: string;
+  gender?: string;
+  age?: string;
+  parentDetails?: string;
+  whatsappNumber?: string;
+  email?: string;
+  address?: string;
   rowNumber: number;
 }
 
@@ -58,6 +66,7 @@ interface ValidationError {
   row: number;
   field: string;
   message: string;
+  studentName?: string;
 }
 
 interface BulkUploadModalProps {
@@ -248,9 +257,12 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
           const school = schools.find(s => s.schoolCode === schoolCode && s.districtCode === districtCode);
           if (!school) return;
 
+          // Format school code with proper padding (01, 02, etc.)
+          const formattedSchoolCode = schoolCode.padStart(2, '0');
+          
           // Add sample students for this combination
-          templateData.push([state.stateCode, districtCode, schoolCode, 'John Doe', '10', 'M', '16', 'Mr. John Sr.', '9876543210', 'john@example.com', '123 Main St']);
-          templateData.push([state.stateCode, districtCode, schoolCode, 'Jane Smith', '9', 'F', '15', 'Mrs. Jane Sr.', '9876543211', 'jane@example.com', '456 Oak Ave']);
+          templateData.push([state.stateCode, districtCode, formattedSchoolCode, 'John Doe', '10', 'M', '16', 'Mr. John Sr.', '9876543210', 'john@example.com', '123 Main St']);
+          templateData.push([state.stateCode, districtCode, formattedSchoolCode, 'Jane Smith', '9', 'F', '15', 'Mrs. Jane Sr.', '9876543211', 'jane@example.com', '456 Oak Ave']);
         });
       });
     });
@@ -270,79 +282,131 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-        if (jsonData.length < 2) {
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    
+    if (fileExtension === 'csv') {
+      // Handle CSV files
+      Papa.parse(file, {
+        complete: (results) => {
+          processUploadedData(results.data as string[][]);
+        },
+        error: (error) => {
+          console.error('Error parsing CSV:', error);
           toast({
             title: "Error",
-            description: "File must contain at least one student record",
+            description: "Failed to parse CSV file. Please check the format.",
             variant: "destructive"
           });
-          return;
         }
-
-        const students: BulkStudent[] = [];
-        const headers = jsonData[0] as string[];
-        
-        // Validate headers
-        const expectedHeaders = ['State Code', 'District Code', 'School Code', 'Student Name'];
-        const hasValidHeaders = expectedHeaders.every(header => 
-          headers.some(h => h?.toLowerCase().includes(header.toLowerCase()))
-        );
-
-        if (!hasValidHeaders) {
-          toast({
-            title: "Invalid File Format",
-            description: "Excel file must contain columns: State Code, District Code, School Code, Student Name",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        // Process data rows
-        for (let i = 1; i < jsonData.length; i++) {
-          const row = jsonData[i] as string[];
-          if (row.length >= 4 && row.some(cell => cell?.toString().trim())) {
-            students.push({
-              stateCode: row[0]?.toString().trim() || '',
-              districtCode: row[1]?.toString().trim() || '',
-              schoolCode: row[2]?.toString().trim() || '',
-              name: row[3]?.toString().trim() || '',
-              rowNumber: i + 1
-            });
-          }
-        }
-
-        if (students.length === 0) {
+      });
+    } else {
+      // Handle Excel files
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          processUploadedData(jsonData as string[][]);
+        } catch (error) {
+          console.error('Error parsing Excel file:', error);
           toast({
             title: "Error",
-            description: "No valid student records found in file",
+            description: "Failed to parse Excel file. Please check the format.",
             variant: "destructive"
           });
-          return;
         }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  };
 
-        setUploadedStudents(students);
-        validateUploadedData(students);
-        setCurrentStep('validation');
-      } catch (error) {
-        console.error('Error parsing file:', error);
+  const processUploadedData = (jsonData: string[][]) => {
+    try {
+
+      if (jsonData.length < 2) {
         toast({
           title: "Error",
-          description: "Failed to parse Excel file. Please check the format.",
+          description: "File must contain at least one student record",
           variant: "destructive"
         });
+        return;
       }
-    };
 
-    reader.readAsArrayBuffer(file);
+      const students: BulkStudent[] = [];
+      const headers = jsonData[0] as string[];
+      
+      // Validate headers
+      const expectedHeaders = ['State Code', 'District Code', 'School Code', 'Student Name'];
+      const hasValidHeaders = expectedHeaders.every(header => 
+        headers.some(h => h?.toLowerCase().includes(header.toLowerCase()))
+      );
+
+      if (!hasValidHeaders) {
+        toast({
+          title: "Invalid File Format",
+          description: "File must contain columns: State Code, District Code, School Code, Student Name",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Get column indices for additional fields
+      const getColumnIndex = (columnName: string) => {
+        return headers.findIndex(h => h?.toLowerCase().includes(columnName.toLowerCase()));
+      };
+
+      const classIndex = getColumnIndex('class');
+      const genderIndex = getColumnIndex('gender');
+      const ageIndex = getColumnIndex('age');
+      const parentIndex = getColumnIndex('parent');
+      const whatsappIndex = getColumnIndex('whatsapp');
+      const emailIndex = getColumnIndex('email');
+      const addressIndex = getColumnIndex('address');
+
+      // Process data rows
+      for (let i = 1; i < jsonData.length; i++) {
+        const row = jsonData[i] as string[];
+        if (row.length >= 4 && row.some(cell => cell?.toString().trim())) {
+          students.push({
+            stateCode: row[0]?.toString().trim() || '',
+            districtCode: row[1]?.toString().trim() || '',
+            schoolCode: row[2]?.toString().trim().padStart(2, '0') || '', // Pad school code
+            name: row[3]?.toString().trim() || '',
+            class: classIndex >= 0 ? row[classIndex]?.toString().trim() : '',
+            gender: genderIndex >= 0 ? row[genderIndex]?.toString().trim() : '',
+            age: ageIndex >= 0 ? row[ageIndex]?.toString().trim() : '',
+            parentDetails: parentIndex >= 0 ? row[parentIndex]?.toString().trim() : '',
+            whatsappNumber: whatsappIndex >= 0 ? row[whatsappIndex]?.toString().trim() : '',
+            email: emailIndex >= 0 ? row[emailIndex]?.toString().trim() : '',
+            address: addressIndex >= 0 ? row[addressIndex]?.toString().trim() : '',
+            rowNumber: i + 1
+          });
+        }
+      }
+
+      if (students.length === 0) {
+        toast({
+          title: "Error",
+          description: "No valid student records found in file",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setUploadedStudents(students);
+      validateUploadedData(students);
+      setCurrentStep('validation');
+    } catch (error) {
+      console.error('Error processing file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process file. Please check the format.",
+        variant: "destructive"
+      });
+    }
   };
 
   const validateUploadedData = (students: BulkStudent[]) => {
@@ -415,7 +479,63 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
         errors.push({
           row: student.rowNumber,
           field: 'Student Name',
-          message: 'Student name is required and must be at least 2 characters'
+          message: 'Student name is required and must be at least 2 characters',
+          studentName: student.name
+        });
+        hasError = true;
+      }
+
+      // Validate class if provided
+      if (student.class && !['8', '9', '10'].includes(student.class)) {
+        errors.push({
+          row: student.rowNumber,
+          field: 'Class',
+          message: `Invalid class "${student.class}". Must be 8, 9, or 10`,
+          studentName: student.name
+        });
+        hasError = true;
+      }
+
+      // Validate gender if provided
+      if (student.gender && !['M', 'F', 'Male', 'Female'].includes(student.gender)) {
+        errors.push({
+          row: student.rowNumber,
+          field: 'Gender',
+          message: `Invalid gender "${student.gender}". Must be M, F, Male, or Female`,
+          studentName: student.name
+        });
+        hasError = true;
+      }
+
+      // Validate age if provided
+      if (student.age && (isNaN(Number(student.age)) || Number(student.age) < 10 || Number(student.age) > 20)) {
+        errors.push({
+          row: student.rowNumber,
+          field: 'Age',
+          message: `Invalid age "${student.age}". Must be between 10 and 20`,
+          studentName: student.name
+        });
+        hasError = true;
+      }
+
+      // Validate WhatsApp number if provided
+      if (student.whatsappNumber && !/^\d{10}$/.test(student.whatsappNumber)) {
+        errors.push({
+          row: student.rowNumber,
+          field: 'WhatsApp Number',
+          message: `Invalid WhatsApp number "${student.whatsappNumber}". Must be 10 digits`,
+          studentName: student.name
+        });
+        hasError = true;
+      }
+
+      // Validate email if provided
+      if (student.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(student.email)) {
+        errors.push({
+          row: student.rowNumber,
+          field: 'Email',
+          message: `Invalid email format "${student.email}"`,
+          studentName: student.name
         });
         hasError = true;
       }
@@ -480,7 +600,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
           const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
           const firebaseUser = userCredential.user;
 
-          // Store in Firestore
+          // Store in Firestore with all fields
           await addDoc(collection(db, 'students'), {
             uid: firebaseUser.uid,
             name: student.name,
@@ -490,6 +610,13 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
             schoolCode: student.schoolCode,
             password: password,
             email: email,
+            class: student.class || '',
+            gender: student.gender || '',
+            age: student.age || '',
+            parentDetails: student.parentDetails || '',
+            whatsappNumber: student.whatsappNumber || '',
+            studentEmail: student.email || '',
+            address: student.address || '',
             createdAt: new Date().toISOString()
           });
 
@@ -789,20 +916,20 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
                   <h3 className="font-semibold text-blue-800">Upload Excel File</h3>
                 </div>
                 <p className="text-blue-700 text-sm">
-                  Upload an Excel file with columns: State Code, District Code, School Code, Student Name
+                  Upload Excel (.xlsx) or CSV (.csv) file with required columns plus optional fields like Class, Gender, Age, etc.
                 </p>
               </div>
 
               <div className="text-center">
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-8">
                   <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Upload Excel File</h3>
-                  <p className="text-gray-500 mb-4">
-                    Select an Excel (.xlsx) file with student data matching your selections
-                  </p>
+                   <h3 className="text-lg font-semibold text-gray-700 mb-2">Upload Excel or CSV File</h3>
+                   <p className="text-gray-500 mb-4">
+                     Select an Excel (.xlsx) or CSV (.csv) file with student data matching your selections
+                   </p>
                   <input
                     type="file"
-                    accept=".xlsx,.xls"
+                    accept=".xlsx,.xls,.csv"
                     onChange={handleFileUpload}
                     className="hidden"
                     id="file-upload"
@@ -812,7 +939,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
                     className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer hover:bg-blue-600"
                   >
                     <FileText className="w-4 h-4 mr-2" />
-                    Choose Excel File
+                    Choose Excel/CSV File
                   </label>
                 </div>
               </div>
@@ -852,15 +979,18 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
               {validationErrors.length > 0 && (
                 <div className="bg-red-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-red-800 mb-2">Validation Errors:</h4>
-                  <div className="max-h-32 overflow-y-auto space-y-1">
-                    {validationErrors.slice(0, 10).map((error, index) => (
-                      <p key={index} className="text-sm text-red-700">
-                        Row {error.row}: {error.field} - {error.message}
-                      </p>
+                  <div className="max-h-40 overflow-y-auto space-y-2">
+                    {validationErrors.slice(0, 15).map((error, index) => (
+                      <div key={index} className="bg-white p-2 rounded border-l-4 border-red-400">
+                        <p className="text-sm text-red-800 font-medium">
+                          Row {error.row}{error.studentName ? ` (${error.studentName})` : ''}: {error.field}
+                        </p>
+                        <p className="text-xs text-red-600 mt-1">{error.message}</p>
+                      </div>
                     ))}
-                    {validationErrors.length > 10 && (
-                      <p className="text-sm text-red-600">
-                        ...and {validationErrors.length - 10} more errors
+                    {validationErrors.length > 15 && (
+                      <p className="text-sm text-red-600 text-center">
+                        ...and {validationErrors.length - 15} more errors
                       </p>
                     )}
                   </div>
