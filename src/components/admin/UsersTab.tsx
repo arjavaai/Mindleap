@@ -70,6 +70,12 @@ interface Student {
   state?: string;
   districtName?: string;
   schoolName?: string;
+  class?: string;
+  gender?: string;
+  age?: number;
+  parentDetails?: string;
+  whatsappNumber?: string;
+  address?: string;
 }
 
 // Secondary Firebase app for student creation
@@ -107,17 +113,35 @@ const UsersTab = () => {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   
   // Form and edit states
-  const [newStudent, setNewStudent] = useState({ name: '', state: '', districtCode: '', schoolCode: '' });
+  const [newStudent, setNewStudent] = useState({ 
+    name: '', 
+    state: '', 
+    districtCode: '', 
+    schoolCode: '',
+    class: '',
+    gender: '',
+    age: '',
+    parentDetails: '',
+    whatsappNumber: '',
+    email: '',
+    address: ''
+  });
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [addedStudent, setAddedStudent] = useState<Student | null>(null);
+  const [viewingStudent, setViewingStudent] = useState<Student | null>(null);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [filterState, setFilterState] = useState('all');
   const [filterDistrict, setFilterDistrict] = useState('all');
   const [filterSchool, setFilterSchool] = useState('all');
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const studentsPerPage = 25;
 
   const { toast } = useToast();
 
@@ -230,7 +254,13 @@ const UsersTab = () => {
       email: studentData.email || '',
       state: state?.stateName || '',
       districtName: district?.districtName || '',
-      schoolName: school?.name || ''
+      schoolName: school?.name || '',
+      class: studentData.class || '',
+      gender: studentData.gender || '',
+      age: studentData.age || undefined,
+      parentDetails: studentData.parentDetails || '',
+      whatsappNumber: studentData.whatsappNumber || '',
+      address: studentData.address || ''
     };
   };
 
@@ -303,7 +333,13 @@ const UsersTab = () => {
           email: data.email || '',
           state: '',
           districtName: '',
-          schoolName: ''
+          schoolName: '',
+          class: data.class || '',
+          gender: data.gender || '',
+          age: data.age || undefined,
+          parentDetails: data.parentDetails || '',
+          whatsappNumber: data.whatsappNumber || '',
+          address: data.address || ''
         });
       });
       
@@ -335,7 +371,9 @@ const UsersTab = () => {
       filtered = filtered.filter(student =>
         student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         student.studentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.email.toLowerCase().includes(searchTerm.toLowerCase())
+        student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.parentDetails?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.whatsappNumber?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -355,6 +393,17 @@ const UsersTab = () => {
     }
 
     setFilteredStudents(filtered);
+  };
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
+  const startIndex = (currentPage - 1) * studentsPerPage;
+  const endIndex = startIndex + studentsPerPage;
+  const currentStudents = filteredStudents.slice(startIndex, endIndex);
+
+  const handleViewStudent = (student: Student) => {
+    setViewingStudent(student);
+    setIsViewModalOpen(true);
   };
 
   const generateStudentSerial = async (schoolCode: string): Promise<string> => {
@@ -393,6 +442,16 @@ const UsersTab = () => {
       return;
     }
 
+    // Validate email if provided
+    if (newStudent.email && !/\S+@\S+\.\S+/.test(newStudent.email)) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid email address",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const password = generatePassword();
@@ -400,10 +459,11 @@ const UsersTab = () => {
       const selectedState = states.find(s => s.stateName === newStudent.state);
       const stateCode = selectedState?.stateCode || 'ML';
       const studentId = `${stateCode}25${newStudent.districtCode}${newStudent.schoolCode}${serial}`;
-      const email = `${studentId}@mindleap.edu`;
+      const systemEmail = `${studentId}@mindleap.edu`;
+      const userEmail = newStudent.email.trim() || systemEmail;
 
       // Create Firebase Auth account
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, userEmail, password);
       const firebaseUser = userCredential.user;
 
       // Store in Firestore
@@ -414,7 +474,14 @@ const UsersTab = () => {
         districtCode: newStudent.districtCode,
         schoolCode: newStudent.schoolCode,
         password: password,
-        email: email,
+        email: userEmail,
+        systemEmail: systemEmail,
+        class: newStudent.class || '',
+        gender: newStudent.gender || '',
+        age: newStudent.age ? parseInt(newStudent.age) : null,
+        parentDetails: newStudent.parentDetails?.trim() || '',
+        whatsappNumber: newStudent.whatsappNumber?.trim() || '',
+        address: newStudent.address?.trim() || '',
         createdAt: new Date().toISOString()
       });
 
@@ -428,17 +495,35 @@ const UsersTab = () => {
         districtCode: newStudent.districtCode,
         schoolCode: newStudent.schoolCode,
         password: password,
-        email: email,
+        email: userEmail,
         state: newStudent.state,
         districtName: availableDistricts.find(d => d.districtCode === newStudent.districtCode)?.districtName || '',
-        schoolName: schools.find(s => s.schoolCode === newStudent.schoolCode)?.name || ''
+        schoolName: schools.find(s => s.schoolCode === newStudent.schoolCode)?.name || '',
+        class: newStudent.class || '',
+        gender: newStudent.gender || '',
+        age: newStudent.age ? parseInt(newStudent.age) : undefined,
+        parentDetails: newStudent.parentDetails?.trim() || '',
+        whatsappNumber: newStudent.whatsappNumber?.trim() || '',
+        address: newStudent.address?.trim() || ''
       };
 
       setStudents(prev => [...prev, newStudentData]);
       setAddedStudent(newStudentData);
       setIsAddModalOpen(false);
       setIsSuccessModalOpen(true);
-      setNewStudent({ name: '', state: '', districtCode: '', schoolCode: '' });
+      setNewStudent({ 
+        name: '', 
+        state: '', 
+        districtCode: '', 
+        schoolCode: '',
+        class: '',
+        gender: '',
+        age: '',
+        parentDetails: '',
+        whatsappNumber: '',
+        email: '',
+        address: ''
+      });
 
       toast({
         title: "Success! 🎉",
@@ -462,7 +547,14 @@ const UsersTab = () => {
       name: student.name,
       state: student.state || '',
       districtCode: student.districtCode,
-      schoolCode: student.schoolCode
+      schoolCode: student.schoolCode,
+      class: student.class || '',
+      gender: student.gender || '',
+      age: student.age?.toString() || '',
+      parentDetails: student.parentDetails || '',
+      whatsappNumber: student.whatsappNumber || '',
+      email: student.email || '',
+      address: student.address || ''
     });
     setIsEditModalOpen(true);
   };
@@ -492,7 +584,19 @@ const UsersTab = () => {
 
       setIsEditModalOpen(false);
       setEditingStudent(null);
-      setNewStudent({ name: '', state: '', districtCode: '', schoolCode: '' });
+      setNewStudent({ 
+        name: '', 
+        state: '', 
+        districtCode: '', 
+        schoolCode: '',
+        class: '',
+        gender: '',
+        age: '',
+        parentDetails: '',
+        whatsappNumber: '',
+        email: '',
+        address: ''
+      });
 
       toast({
         title: "Success! ✅",
@@ -663,35 +767,20 @@ const UsersTab = () => {
     setFilterState('all');
     setFilterDistrict('all');
     setFilterSchool('all');
+    setNewStudent({ 
+      name: '', 
+      state: '', 
+      districtCode: '', 
+      schoolCode: '',
+      class: '',
+      gender: '',
+      age: '',
+      parentDetails: '',
+      whatsappNumber: '',
+      email: '',
+      address: ''
+    });
   };
-
-  // Debug function to log data enrichment status
-  const debugDataEnrichment = () => {
-    console.log('=== Data Enrichment Debug ===');
-    console.log('States loaded:', states.length);
-    console.log('Schools loaded:', schools.length);
-    console.log('Students loaded:', students.length);
-    console.log('Sample student enrichment:', students.slice(0, 2).map(s => ({
-      id: s.id,
-      name: s.name,
-      studentId: s.studentId,
-      state: s.state,
-      districtName: s.districtName,
-      schoolName: s.schoolName,
-      enriched: {
-        ...enrichSingleStudent(s),
-        email: '[HIDDEN]', // Hide email in debug logs
-        password: '[HIDDEN]' // Hide password in debug logs
-      }
-    })));
-  };
-
-  // Call debug function when data changes (remove in production)
-  useEffect(() => {
-    if (students.length > 0 && states.length > 0 && schools.length > 0) {
-      debugDataEnrichment();
-    }
-  }, [students, states, schools]);
 
   return (
     <div className="space-y-6">
@@ -898,7 +987,7 @@ const UsersTab = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredStudents.map((student) => (
+              {currentStudents.map((student) => (
                 <tr key={student.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
@@ -921,7 +1010,6 @@ const UsersTab = () => {
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">{student.name}</div>
-                        <div className="text-sm text-gray-500">ID: {student.studentId}</div>
                       </div>
                     </div>
                   </td>
@@ -974,6 +1062,14 @@ const UsersTab = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex space-x-2">
                       <Button
+                        onClick={() => handleViewStudent(student)}
+                        variant="outline"
+                        size="sm"
+                        className="text-green-600 hover:text-green-700"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button
                         onClick={() => handleEditStudent(student)}
                         variant="outline"
                         size="sm"
@@ -1006,11 +1102,41 @@ const UsersTab = () => {
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {filteredStudents.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-700">
+              Showing {startIndex + 1} to {Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} students
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </motion.div>
 
       {/* Add Student Modal */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Plus className="w-5 h-5 text-blue-600" />
@@ -1026,6 +1152,110 @@ const UsersTab = () => {
                 placeholder="Enter student name"
                 value={newStudent.name}
                 onChange={(e) => setNewStudent(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Class *
+                </label>
+                <div className="flex space-x-4">
+                  {['8', '9', '10'].map((classNum) => (
+                    <label key={classNum} className="flex items-center">
+                      <input
+                        type="radio"
+                        value={classNum}
+                        checked={newStudent.class === classNum}
+                        onChange={(e) => setNewStudent(prev => ({ ...prev, class: e.target.value }))}
+                        className="mr-2"
+                      />
+                      {classNum}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gender *
+                </label>
+                <div className="flex space-x-4">
+                  {[{ value: 'M', label: 'Male' }, { value: 'F', label: 'Female' }].map((gender) => (
+                    <label key={gender.value} className="flex items-center">
+                      <input
+                        type="radio"
+                        value={gender.value}
+                        checked={newStudent.gender === gender.value}
+                        onChange={(e) => setNewStudent(prev => ({ ...prev, gender: e.target.value }))}
+                        className="mr-2"
+                      />
+                      {gender.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Age
+                </label>
+                <Input
+                  type="number"
+                  placeholder="Enter age"
+                  value={newStudent.age}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, age: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  WhatsApp Number
+                </label>
+                <Input
+                  type="number"
+                  placeholder="Enter WhatsApp number"
+                  value={newStudent.whatsappNumber}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, whatsappNumber: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Parent Details
+              </label>
+              <Input
+                placeholder="Enter parent name(s)"
+                value={newStudent.parentDetails}
+                onChange={(e) => setNewStudent(prev => ({ ...prev, parentDetails: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <Input
+                type="email"
+                placeholder="Enter email address"
+                value={newStudent.email}
+                onChange={(e) => setNewStudent(prev => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Address
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Enter full address"
+                value={newStudent.address}
+                onChange={(e) => setNewStudent(prev => ({ ...prev, address: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
@@ -1110,7 +1340,19 @@ const UsersTab = () => {
                 variant="outline"
                 onClick={() => {
                   setIsAddModalOpen(false);
-                  setNewStudent({ name: '', state: '', districtCode: '', schoolCode: '' });
+                  setNewStudent({ 
+                    name: '', 
+                    state: '', 
+                    districtCode: '', 
+                    schoolCode: '',
+                    class: '',
+                    gender: '',
+                    age: '',
+                    parentDetails: '',
+                    whatsappNumber: '',
+                    email: '',
+                    address: ''
+                  });
                 }}
                 disabled={isLoading}
               >
@@ -1195,7 +1437,19 @@ const UsersTab = () => {
                 onClick={() => {
                   setIsEditModalOpen(false);
                   setEditingStudent(null);
-                  setNewStudent({ name: '', state: '', districtCode: '', schoolCode: '' });
+                  setNewStudent({ 
+                    name: '', 
+                    state: '', 
+                    districtCode: '', 
+                    schoolCode: '',
+                    class: '',
+                    gender: '',
+                    age: '',
+                    parentDetails: '',
+                    whatsappNumber: '',
+                    email: '',
+                    address: ''
+                  });
                 }}
                 disabled={isLoading}
               >
@@ -1311,6 +1565,95 @@ const UsersTab = () => {
                 {isLoading ? 'Deleting...' : 'Delete All'}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Student Modal */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Eye className="w-5 h-5 text-green-600" />
+              <span>Student Details</span>
+            </DialogTitle>
+          </DialogHeader>
+          {viewingStudent && (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Basic Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Name</p>
+                    <p className="font-medium">{viewingStudent.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Student ID</p>
+                    <p className="font-mono text-sm">{viewingStudent.studentId}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Class</p>
+                    <p className="font-medium">{viewingStudent.class || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Gender</p>
+                    <p className="font-medium">{viewingStudent.gender === 'M' ? 'Male' : viewingStudent.gender === 'F' ? 'Female' : '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Age</p>
+                    <p className="font-medium">{viewingStudent.age || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Email</p>
+                    <p className="text-sm break-all">{viewingStudent.email}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Contact Information</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Parent Details</p>
+                    <p className="font-medium">{viewingStudent.parentDetails || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">WhatsApp Number</p>
+                    <p className="font-medium">{viewingStudent.whatsappNumber || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Address</p>
+                    <p className="font-medium">{viewingStudent.address || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* School Information */}
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">School Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">State</p>
+                    <p className="font-medium">{viewingStudent.state || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">District</p>
+                    <p className="font-medium">{viewingStudent.districtName || '-'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-sm text-gray-600">School</p>
+                    <p className="font-medium">{viewingStudent.schoolName || '-'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end pt-4">
+            <Button onClick={() => setIsViewModalOpen(false)} className="bg-green-600 hover:bg-green-700 text-white">
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

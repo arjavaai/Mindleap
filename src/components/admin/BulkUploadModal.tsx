@@ -231,8 +231,8 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
       return;
     }
 
-    const templateData = [
-      ['State Code', 'District Code', 'School Code', 'Student Name']
+        const templateData = [
+      ['State Code', 'District Code', 'School Code', 'Student Name', 'Class', 'Gender', 'Age', 'Parent Details', 'WhatsApp Number', 'Email', 'Address']
     ];
 
     // Add sample data for each selected combination
@@ -249,8 +249,8 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
           if (!school) return;
 
           // Add sample students for this combination
-          templateData.push([state.stateCode, districtCode, schoolCode, 'John Doe']);
-          templateData.push([state.stateCode, districtCode, schoolCode, 'Jane Smith']);
+          templateData.push([state.stateCode, districtCode, schoolCode, 'John Doe', '10', 'M', '16', 'Mr. John Sr.', '9876543210', 'john@example.com', '123 Main St']);
+          templateData.push([state.stateCode, districtCode, schoolCode, 'Jane Smith', '9', 'F', '15', 'Mrs. Jane Sr.', '9876543211', 'jane@example.com', '456 Oak Ave']);
         });
       });
     });
