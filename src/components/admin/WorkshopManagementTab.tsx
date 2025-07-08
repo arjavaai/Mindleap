@@ -404,13 +404,6 @@ const WorkshopManagementTab = () => {
                       <Edit className="w-5 h-5" />
                     </button>
                     <button
-                      onClick={() => fetchWorkshopStats(workshop)}
-                      className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                      title="View Stats"
-                    >
-                      <BarChart3 className="w-5 h-5" />
-                    </button>
-                    <button
                       onClick={() => handleDeleteWorkshop(workshop.id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Delete"

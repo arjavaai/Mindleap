@@ -398,7 +398,7 @@ const WebinarManagementTab = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="bg-blue-50 p-4 rounded-lg">
           <div className="flex items-center gap-3">
             <Calendar className="w-8 h-8 text-blue-600" />
@@ -414,31 +414,6 @@ const WebinarManagementTab = () => {
             <div>
               <p className="text-sm text-green-600">Completed</p>
               <p className="text-2xl font-bold text-green-800">{completedWebinars.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-purple-50 p-4 rounded-lg">
-          <div className="flex items-center gap-3">
-            <Users className="w-8 h-8 text-purple-600" />
-            <div>
-              <p className="text-sm text-purple-600">Total Views</p>
-              <p className="text-2xl font-bold text-purple-800">
-                {webinars.reduce((sum, w) => sum + (w.viewCount || 0), 0)}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-orange-50 p-4 rounded-lg">
-          <div className="flex items-center gap-3">
-            <BarChart3 className="w-8 h-8 text-orange-600" />
-            <div>
-              <p className="text-sm text-orange-600">Completion Rate</p>
-              <p className="text-2xl font-bold text-orange-800">
-                {webinars.length > 0 
-                  ? Math.round((webinars.reduce((sum, w) => sum + (w.completedCount || 0), 0) / 
-                      webinars.reduce((sum, w) => sum + (w.viewCount || 0), 0)) * 100) || 0
-                  : 0}%
-              </p>
             </div>
           </div>
         </div>
@@ -467,9 +442,6 @@ const WebinarManagementTab = () => {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Views
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -519,10 +491,7 @@ const WebinarManagementTab = () => {
                       }
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {webinar.viewCount || 0}
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium">
+                   <td className="px-6 py-4 text-sm font-medium">
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleEditWebinar(webinar)}
@@ -530,13 +499,6 @@ const WebinarManagementTab = () => {
                         title="Edit Webinar"
                       >
                         <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => fetchWebinarStats(webinar)}
-                        className="text-green-600 hover:text-green-900 p-1"
-                        title="View Stats"
-                      >
-                        <BarChart3 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => window.open(webinar.youtubeUrl, '_blank')}

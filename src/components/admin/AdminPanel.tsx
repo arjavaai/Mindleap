@@ -42,19 +42,11 @@ const AdminPanel = () => {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-blue-50 to-purple-50">
       <div className="flex">
         {/* Sidebar */}
-        <div className="w-64 bg-white shadow-lg">
+        <div className="w-64 bg-white shadow-lg fixed h-full">
           {/* Header */}
           <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
-                <Brain className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-800 font-poppins">
-                  Mind<span className="text-orange-500">Leap</span>
-                </h1>
-                <p className="text-xs text-gray-500">Admin Panel</p>
-              </div>
+            <div className="flex items-center justify-center">
+              <img src="/corousal/mindleap1.png" alt="MindLeap" className="h-10" />
             </div>
           </div>
 
@@ -85,7 +77,7 @@ const AdminPanel = () => {
           <div className="absolute bottom-4 left-4 right-4">
             <button
               onClick={handleSignOut}
-              className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="w-56 flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             >
               <LogOut className="w-5 h-5" />
               <span className="font-medium">Sign Out</span>
@@ -94,13 +86,13 @@ const AdminPanel = () => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 ml-64 p-6">
           <motion.div
             key={activeTab}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="bg-white rounded-xl shadow-lg"
+            className="bg-white rounded-xl shadow-lg overflow-hidden"
           >
             {activeTab === 'schools' && <SchoolsTab />}
             {activeTab === 'users' && <UsersTab />}

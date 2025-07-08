@@ -168,7 +168,7 @@ const UsersTab = () => {
     const initializeData = async () => {
       await fetchStates();
       await fetchSchools();
-      await fetchStudents();
+      // Don't auto-fetch students
     };
     initializeData();
   }, []);
@@ -312,18 +312,25 @@ const UsersTab = () => {
     }
   };
 
-  const fetchStudents = async () => {
+  const fetchStudents = async (stateFilter?: string, districtFilter?: string, schoolFilter?: string) => {
     setIsFetching(true);
     setIsDataEnriched(false);
     try {
-      const q = query(collection(db, 'students'), orderBy('name'));
+      let q = query(collection(db, 'students'), orderBy('name'));
+      
+      // Apply filters if provided
+      if (schoolFilter && schoolFilter !== 'all') {
+        q = query(collection(db, 'students'), where('schoolCode', '==', schoolFilter), orderBy('name'));
+      } else if (districtFilter && districtFilter !== 'all') {
+        q = query(collection(db, 'students'), where('districtCode', '==', districtFilter), orderBy('name'));
+      }
+      
       const querySnapshot = await getDocs(q);
       const studentsList: Student[] = [];
       
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        // Store raw data first, will be enriched later
-        studentsList.push({
+        const student = {
           id: doc.id,
           name: data.name || '',
           studentId: data.studentId || '',
@@ -340,7 +347,17 @@ const UsersTab = () => {
           parentDetails: data.parentDetails || '',
           whatsappNumber: data.whatsappNumber || '',
           address: data.address || ''
-        });
+        };
+        
+        // Apply state filter if needed (since we can't filter by state directly in Firestore)
+        if (stateFilter && stateFilter !== 'all') {
+          const school = schools.find(s => s.schoolCode === student.schoolCode);
+          if (school && school.state !== stateFilter) {
+            return; // Skip this student
+          }
+        }
+        
+        studentsList.push(student);
       });
       
       // Enrich with related data if states and schools are already loaded
@@ -719,13 +736,20 @@ const UsersTab = () => {
     }
   };
 
-  const exportStudentData = () => {
+  const handleExportStudents = () => {
     // Ensure all students have enriched data before export
     const enrichedExportData = filteredStudents.map(student => {
       const enrichedStudent = enrichSingleStudent(student);
       return {
         'Student Name': enrichedStudent.name,
         'Student ID': enrichedStudent.studentId,
+        'Age': enrichedStudent.age || '',
+        'Class': enrichedStudent.class || '',
+        'Gender': enrichedStudent.gender === 'M' ? 'Male' : enrichedStudent.gender === 'F' ? 'Female' : '',
+        'Parent Details': enrichedStudent.parentDetails || '',
+        'WhatsApp Number': enrichedStudent.whatsappNumber || '',
+        'Email': enrichedStudent.email || '',
+        'Address': enrichedStudent.address || '',
         'State': enrichedStudent.state || 'Unknown',
         'District': enrichedStudent.districtName || 'Unknown',
         'District Code': enrichedStudent.districtCode,
@@ -896,7 +920,7 @@ const UsersTab = () => {
 
           {/* Export Button */}
           <Button 
-            onClick={exportStudentData}
+            onClick={handleExportStudents}
             className="bg-orange-600 hover:bg-orange-700 text-white"
             disabled={filteredStudents.length === 0}
           >
@@ -1008,9 +1032,9 @@ const UsersTab = () => {
                           <User className="w-5 h-5 text-blue-600" />
                         </div>
                       </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{student.name}</div>
-                      </div>
+                       <div className="ml-4">
+                         <div className="text-sm font-medium text-gray-900 max-w-xs truncate">{student.name}</div>
+                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -1024,41 +1048,41 @@ const UsersTab = () => {
                       </button>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {student.state || (
-                        isEnriching ? (
-                          <span className="text-gray-400 italic">Loading...</span>
-                        ) : (
-                          <span className="text-gray-400 italic">-</span>
-                        )
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {student.districtName || (
-                        isEnriching ? (
-                          <span className="text-gray-400 italic">Loading...</span>
-                        ) : (
-                          <span className="text-gray-400 italic">-</span>
-                        )
-                      )}
-                      <div className="text-xs text-gray-500">Code: {student.districtCode}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {student.schoolName || (
-                        isEnriching ? (
-                          <span className="text-gray-400 italic">Loading...</span>
-                        ) : (
-                          <span className="text-gray-400 italic">-</span>
-                        )
-                      )}
-                      <div className="text-xs text-gray-500">Code: {student.schoolCode}</div>
-                    </div>
-                  </td>
+                   <td className="px-6 py-4">
+                     <div className="text-sm text-gray-900 max-w-32 break-words">
+                       {student.state || (
+                         isEnriching ? (
+                           <span className="text-gray-400 italic">Loading...</span>
+                         ) : (
+                           <span className="text-gray-400 italic">-</span>
+                         )
+                       )}
+                     </div>
+                   </td>
+                   <td className="px-6 py-4">
+                     <div className="text-sm text-gray-900 max-w-32 break-words">
+                       {student.districtName || (
+                         isEnriching ? (
+                           <span className="text-gray-400 italic">Loading...</span>
+                         ) : (
+                           <span className="text-gray-400 italic">-</span>
+                         )
+                       )}
+                       <div className="text-xs text-gray-500">Code: {student.districtCode}</div>
+                     </div>
+                   </td>
+                   <td className="px-6 py-4">
+                     <div className="text-sm text-gray-900 max-w-48 break-words">
+                       {student.schoolName || (
+                         isEnriching ? (
+                           <span className="text-gray-400 italic">Loading...</span>
+                         ) : (
+                           <span className="text-gray-400 italic">-</span>
+                         )
+                       )}
+                       <div className="text-xs text-gray-500">Code: {student.schoolCode}</div>
+                     </div>
+                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex space-x-2">
                       <Button
