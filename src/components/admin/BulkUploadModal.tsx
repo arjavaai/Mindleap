@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Download, FileText, Check, AlertCircle, X, ChevronRight, Users, School, MapPin, CheckSquare, Square } from 'lucide-react';
 import { collection, addDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
+import { createUserWithEmailAndPassword, getAuth, fetchSignInMethodsForEmail } from 'firebase/auth';
 import { initializeApp } from 'firebase/app';
 import { db } from '../../lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -595,6 +595,27 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
           const studentId = `${student.stateCode}25${student.districtCode}${student.schoolCode}${serial}`;
           const password = generatePassword();
           const email = `${studentId}@mindleap.edu`;
+
+          // Check if email already exists in Firebase Auth
+          const signInMethods = await fetchSignInMethodsForEmail(secondaryAuth, email);
+          if (signInMethods && signInMethods.length > 0) {
+            // Email already registered, mark as failed and skip creation
+            processed.push({
+              name: student.name,
+              studentId,
+              stateCode: student.stateCode,
+              districtCode: student.districtCode,
+              schoolCode: student.schoolCode,
+              password: '',
+              email,
+              status: 'failed',
+              error: 'Email already in use'
+            });
+            failedCount++;
+            // Update progress here and continue to next student
+            setProcessingProgress(((i + 1) / validStudents.length) * 100);
+            continue;
+          }
 
           // Create Firebase Auth account
           const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);

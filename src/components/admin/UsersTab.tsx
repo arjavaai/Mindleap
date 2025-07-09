@@ -168,7 +168,7 @@ const UsersTab = () => {
     const initializeData = async () => {
       await fetchStates();
       await fetchSchools();
-      // Don't auto-fetch students
+      await fetchStudents(); // Fetch all students on initial load
     };
     initializeData();
   }, []);
@@ -366,7 +366,7 @@ const UsersTab = () => {
         setStudents(enrichedStudents);
         setIsDataEnriched(true);
       } else {
-        setStudents(studentsList);
+      setStudents(studentsList);
       }
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -524,7 +524,9 @@ const UsersTab = () => {
         address: newStudent.address?.trim() || ''
       };
 
-      setStudents(prev => [...prev, newStudentData]);
+      // Refresh the students list to ensure the new student appears
+      await fetchStudents();
+      
       setAddedStudent(newStudentData);
       setIsAddModalOpen(false);
       setIsSuccessModalOpen(true);
@@ -813,7 +815,7 @@ const UsersTab = () => {
         <div className="flex items-center space-x-3">
           <Users className="w-8 h-8 text-blue-600" />
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
+          <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
             <p className="text-gray-600">Manage student accounts and data</p>
           </div>
         </div>
@@ -858,14 +860,14 @@ const UsersTab = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search students..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Input
+            placeholder="Search students..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
 
           {/* State Filter */}
           <Select value={filterState} onValueChange={setFilterState}>
@@ -927,7 +929,7 @@ const UsersTab = () => {
             <FileDown className="w-4 h-4 mr-2" />
             Export ({filteredStudents.length})
           </Button>
-        </div>
+      </div>
       </motion.div>
 
       {/* Students Table */}
@@ -966,8 +968,8 @@ const UsersTab = () => {
                   <Trash className="w-4 h-4 mr-2" />
                   Delete Selected
                 </Button>
-              </div>
-            )}
+        </div>
+      )}
           </div>
         </div>
 
@@ -1085,14 +1087,14 @@ const UsersTab = () => {
                    </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex space-x-2">
-                      <Button
-                        onClick={() => handleViewStudent(student)}
-                        variant="outline"
+                    <Button
+                      onClick={() => handleViewStudent(student)}
+                      variant="outline"
                         size="sm"
                         className="text-green-600 hover:text-green-700"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
                       <Button
                         onClick={() => handleEditStudent(student)}
                         variant="outline"
@@ -1123,8 +1125,8 @@ const UsersTab = () => {
               <p className="text-gray-500">
                 {isFetching ? 'Loading students...' : 'Try adjusting your search or filters'}
               </p>
-            </div>
-          )}
+        </div>
+      )}
         </div>
 
         {/* Pagination */}
@@ -1426,7 +1428,7 @@ const UsersTab = () => {
                 >
                   <Copy className="w-4 h-4" />
                 </button>
-              </div>
+        </div>
               <div className="flex items-center justify-between">
                 <p className="text-sm text-gray-600">
                   <strong>Password:</strong> 
@@ -1608,29 +1610,48 @@ const UsersTab = () => {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Basic Information</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
+              <div>
                     <p className="text-sm text-gray-600">Name</p>
                     <p className="font-medium">{viewingStudent.name}</p>
-                  </div>
-                  <div>
+              </div>
+              <div>
                     <p className="text-sm text-gray-600">Student ID</p>
-                    <p className="font-mono text-sm">{viewingStudent.studentId}</p>
-                  </div>
-                  <div>
+                    <div className="flex items-center">
+                      <p className="font-mono text-sm flex-1">{viewingStudent.studentId}</p>
+                      <Button variant="ghost" size="sm" onClick={() => copyToClipboard(viewingStudent.studentId, 'Student ID')}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+              </div>
+              <div>
                     <p className="text-sm text-gray-600">Class</p>
                     <p className="font-medium">{viewingStudent.class || '-'}</p>
-                  </div>
-                  <div>
+              </div>
+              <div>
                     <p className="text-sm text-gray-600">Gender</p>
                     <p className="font-medium">{viewingStudent.gender === 'M' ? 'Male' : viewingStudent.gender === 'F' ? 'Female' : '-'}</p>
-                  </div>
-                  <div>
+              </div>
+              <div>
                     <p className="text-sm text-gray-600">Age</p>
                     <p className="font-medium">{viewingStudent.age || '-'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Email</p>
                     <p className="text-sm break-all">{viewingStudent.email}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-sm text-gray-600">Password</p>
+                    <div className="flex items-center">
+                      <p className="font-mono text-sm flex-1">
+                        {visiblePasswords[viewingStudent.id] ? viewingStudent.password : '••••••••'}
+                      </p>
+                      <Button variant="ghost" size="sm" onClick={() => togglePasswordVisibility(viewingStudent.id)}>
+                        {visiblePasswords[viewingStudent.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => copyToClipboard(viewingStudent.password, 'Password')}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

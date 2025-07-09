@@ -70,6 +70,7 @@ const StudentLoginForm = ({ onToggleForm }: StudentLoginFormProps) => {
       const studentSnapshot = await getDocs(studentsQuery);
       
       if (studentSnapshot.empty) {
+        console.log('Student not found in database for ID:', formData.studentId);
         toast({
           title: "Student Not Found",
           description: "Student ID not found in our records. Please check your Student ID.",
@@ -80,10 +81,15 @@ const StudentLoginForm = ({ onToggleForm }: StudentLoginFormProps) => {
       }
 
       const studentData = studentSnapshot.docs[0].data();
-      console.log('Student found in database:', studentData.name);
+      console.log('Student found in database:', {
+        name: studentData.name,
+        email: studentData.email,
+        hasPassword: !!studentData.password
+      });
       
       // Check if the password matches what's stored in our database
       if (studentData.password !== formData.password) {
+        console.log('Password mismatch for student:', studentData.name);
         toast({
           title: "Invalid Password",
           description: "Incorrect password. Please try again.",
@@ -93,8 +99,9 @@ const StudentLoginForm = ({ onToggleForm }: StudentLoginFormProps) => {
         return;
       }
 
-      // Convert Student ID to email format
-      const email = `${formData.studentId}@mindleap.edu`;
+      // Use the actual email that was used to create the Firebase Auth account
+      // This could be either a custom email or the system email format
+      const email = studentData.email || `${formData.studentId}@mindleap.edu`;
       console.log('Attempting Firebase Auth with email:', email);
       
       await signInWithEmailAndPassword(auth, email, formData.password);
