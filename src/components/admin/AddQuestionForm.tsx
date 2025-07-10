@@ -6,6 +6,7 @@ import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import Editor from 'react-simple-wysiwyg';
 
 interface Question {
   id: string;
@@ -66,14 +67,21 @@ const AddQuestionForm: React.FC<AddQuestionFormProps> = ({
     }
   }, [editingQuestion, isOpen]);
 
+  // Helper function to strip HTML tags for validation
+  const stripHtml = (html: string) => {
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    return temp.textContent || temp.innerText || '';
+  };
+
   const handleSubmit = () => {
-    if (!formData.question.trim() || 
-        !formData.options.a.trim() || 
-        !formData.options.b.trim() || 
-        !formData.options.c.trim() || 
-        !formData.options.d.trim() || 
+    if (!stripHtml(formData.question).trim() || 
+        !stripHtml(formData.options.a).trim() || 
+        !stripHtml(formData.options.b).trim() || 
+        !stripHtml(formData.options.c).trim() || 
+        !stripHtml(formData.options.d).trim() || 
         !formData.correctOption || 
-        !formData.explanation.trim()) {
+        !stripHtml(formData.explanation).trim()) {
       return;
     }
 
@@ -92,13 +100,13 @@ const AddQuestionForm: React.FC<AddQuestionFormProps> = ({
     onClose();
   };
 
-  const isFormValid = formData.question.trim() && 
-    formData.options.a.trim() && 
-    formData.options.b.trim() && 
-    formData.options.c.trim() && 
-    formData.options.d.trim() && 
+  const isFormValid = stripHtml(formData.question).trim() && 
+    stripHtml(formData.options.a).trim() && 
+    stripHtml(formData.options.b).trim() && 
+    stripHtml(formData.options.c).trim() && 
+    stripHtml(formData.options.d).trim() && 
     formData.correctOption && 
-    formData.explanation.trim();
+    stripHtml(formData.explanation).trim();
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -117,12 +125,16 @@ const AddQuestionForm: React.FC<AddQuestionFormProps> = ({
           {/* Question Text */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">🧠 Question Text</label>
-            <Textarea
-              value={formData.question}
-              onChange={(e) => setFormData(prev => ({ ...prev, question: e.target.value }))}
-              placeholder="Enter the question text..."
-              className="min-h-[80px] resize-none"
-            />
+            <div className="border border-gray-300 rounded-md">
+              <Editor
+                value={formData.question}
+                onChange={(e) => setFormData(prev => ({ ...prev, question: e.target.value }))}
+                placeholder="Enter the question text with formatting..."
+                containerProps={{
+                  style: { minHeight: '80px', border: 'none' }
+                }}
+              />
+            </div>
           </div>
 
           {/* Options */}
@@ -132,15 +144,19 @@ const AddQuestionForm: React.FC<AddQuestionFormProps> = ({
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
                   🔢 Option {option.toUpperCase()}
                 </label>
-                <Input
-                  value={formData.options[option as keyof typeof formData.options]}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    options: { ...prev.options, [option]: e.target.value }
-                  }))}
-                  placeholder={`Enter option ${option.toUpperCase()}...`}
-                  className="h-12"
-                />
+                <div className="border border-gray-300 rounded-md">
+                  <Editor
+                    value={formData.options[option as keyof typeof formData.options]}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      options: { ...prev.options, [option]: e.target.value }
+                    }))}
+                    placeholder={`Enter option ${option.toUpperCase()} with formatting...`}
+                    containerProps={{
+                      style: { minHeight: '60px', border: 'none' }
+                    }}
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -164,12 +180,16 @@ const AddQuestionForm: React.FC<AddQuestionFormProps> = ({
           {/* Explanation */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">💡 Explanation</label>
-            <Textarea
-              value={formData.explanation}
-              onChange={(e) => setFormData(prev => ({ ...prev, explanation: e.target.value }))}
-              placeholder="Explain why this is the correct answer..."
-              className="min-h-[100px] resize-none"
-            />
+            <div className="border border-gray-300 rounded-md">
+              <Editor
+                value={formData.explanation}
+                onChange={(e) => setFormData(prev => ({ ...prev, explanation: e.target.value }))}
+                placeholder="Explain why this is the correct answer with formatting..."
+                containerProps={{
+                  style: { minHeight: '100px', border: 'none' }
+                }}
+              />
+            </div>
           </div>
 
           {/* Action Buttons */}

@@ -1,26 +1,46 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
+interface Subject {
+  id: string;
+  name: string;
+  scheduledDay: string;
+  createdAt: string;
+}
+
 interface AddSubjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (subjectName: string, scheduledDay: string) => void;
   isLoading: boolean;
+  editingSubject?: Subject | null;
 }
 
 const AddSubjectModal: React.FC<AddSubjectModalProps> = ({
   isOpen,
   onClose,
   onAdd,
-  isLoading
+  isLoading,
+  editingSubject
 }) => {
   const [subjectName, setSubjectName] = useState('');
   const [scheduledDay, setScheduledDay] = useState('');
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editingSubject) {
+      setSubjectName(editingSubject.name);
+      setScheduledDay(editingSubject.scheduledDay);
+    } else {
+      setSubjectName('');
+      setScheduledDay('');
+    }
+  }, [editingSubject, isOpen]);
 
   const dayOptions = [
     'Monday',
@@ -48,7 +68,9 @@ const AddSubjectModal: React.FC<AddSubjectModalProps> = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-gray-800 font-poppins">Add New Subject</DialogTitle>
+          <DialogTitle className="text-2xl font-bold text-gray-800 font-poppins">
+            {editingSubject ? 'Edit Subject' : 'Add New Subject'}
+          </DialogTitle>
         </DialogHeader>
         
         <motion.div
@@ -100,10 +122,10 @@ const AddSubjectModal: React.FC<AddSubjectModalProps> = ({
               {isLoading ? (
                 <div className="flex items-center">
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                  Adding...
+                  {editingSubject ? 'Updating...' : 'Adding...'}
                 </div>
               ) : (
-                'Add Subject'
+                editingSubject ? 'Update Subject' : 'Add Subject'
               )}
             </Button>
           </div>

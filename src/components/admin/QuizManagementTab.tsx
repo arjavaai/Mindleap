@@ -42,10 +42,12 @@ interface Quiz {
   title: string;
   questions: Question[];
   duration: number;
-  targetType: 'all' | 'state' | 'district' | 'school';
+  targetType: 'all' | 'state' | 'district' | 'school' | 'students';
   targetId?: string;
   targetStateId?: string;
   targetDistrictId?: string;
+  targetStudentIds?: string[];
+  level?: string;
   expiryType: 'never' | 'hours' | 'days';
   expiryValue?: number;
   createdAt: any;
@@ -130,10 +132,12 @@ const QuizManagementTab = () => {
   const [quizData, setQuizData] = useState({
     title: '',
     duration: 300,
-    targetType: 'all' as 'all' | 'state' | 'district' | 'school',
+    level: '1',
+    targetType: 'all' as 'all' | 'state' | 'district' | 'school' | 'students',
     targetStateId: '',
     targetDistrictId: '',
     targetSchoolId: '',
+    targetStudentIds: [] as string[],
     expiryType: 'never' as 'never' | 'hours' | 'days',
     expiryValue: 24
   });
@@ -211,10 +215,12 @@ const QuizManagementTab = () => {
     setQuizData({
       title: '',
       duration: 300,
+      level: '1',
       targetType: 'all',
       targetStateId: '',
       targetDistrictId: '',
       targetSchoolId: '',
+      targetStudentIds: [],
       expiryType: 'never',
       expiryValue: 24
     });
@@ -234,10 +240,12 @@ const QuizManagementTab = () => {
     setQuizData({
       title: quiz.title,
       duration: quiz.duration,
+      level: (quiz as any).level || '1',
       targetType: quiz.targetType,
       targetStateId: quiz.targetStateId || '',
       targetDistrictId: quiz.targetDistrictId || '',
       targetSchoolId: quiz.targetId || '',
+      targetStudentIds: (quiz as any).targetStudentIds || [],
       expiryType: quiz.expiryType,
       expiryValue: quiz.expiryValue || 24
     });
@@ -294,6 +302,7 @@ const QuizManagementTab = () => {
         title: quizData.title,
         questions: questions,
         duration: quizData.duration,
+        level: quizData.level,
         targetType: quizData.targetType,
         ...(quizData.targetType === 'state' && { 
           targetId: quizData.targetStateId,
@@ -309,6 +318,7 @@ const QuizManagementTab = () => {
           targetStateId: quizData.targetStateId,
           targetDistrictId: quizData.targetDistrictId 
         }),
+        ...(quizData.targetType === 'students' && { targetStudentIds: quizData.targetStudentIds }),
         expiryType: quizData.expiryType,
         ...(quizData.expiryType !== 'never' && { expiryValue: quizData.expiryValue }),
         isActive: true,
@@ -575,6 +585,7 @@ const QuizManagementTab = () => {
       case 'state': return <MapPin className="w-4 h-4" />;
       case 'district': return <Target className="w-4 h-4" />;
       case 'school': return <School className="w-4 h-4" />;
+      case 'students': return <Users className="w-4 h-4" />;
       default: return <Globe className="w-4 h-4" />;
     }
   };
@@ -598,30 +609,69 @@ const QuizManagementTab = () => {
             />
           </div>
 
+          {/* Duration Inputs */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Duration (minutes)
-            </label>
-            <input
-              type="number"
-              value={Math.floor(quizData.duration / 60)}
-              onChange={(e) => setQuizData({ ...quizData, duration: parseInt(e.target.value || '5') * 60 })}
-              min="1"
-              max="180"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <input
+                  type="number"
+                  value={Math.floor(quizData.duration / 60)}
+                  onChange={(e) => {
+                    const mins = parseInt(e.target.value || '0');
+                    const secs = quizData.duration % 60;
+                    setQuizData({ ...quizData, duration: mins * 60 + secs });
+                  }}
+                  min="0"
+                  max="180"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="Minutes"
+                />
+              </div>
+              <div>
+                <input
+                  type="number"
+                  value={quizData.duration % 60}
+                  onChange={(e) => {
+                    let secs = parseInt(e.target.value || '0');
+                    if (secs > 59) secs = 59;
+                    if (secs < 0) secs = 0;
+                    const mins = Math.floor(quizData.duration / 60);
+                    setQuizData({ ...quizData, duration: mins * 60 + secs });
+                  }}
+                  min="0"
+                  max="59"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="Seconds"
+                />
+              </div>
+            </div>
           </div>
 
+          {/* Level Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Target Audience *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Level</label>
+            <select
+              value={quizData.level}
+              onChange={(e) => setQuizData({ ...quizData, level: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            >
+              {[1,2,3,4,5].map((lvl) => (
+                <option key={lvl} value={String(lvl)}>Level {lvl}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Target Audience */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Target Audience *</label>
             <div className="space-y-3">
               {[
                 { value: 'all', label: 'All Users', icon: Globe },
                 { value: 'state', label: 'Specific State', icon: MapPin },
                 { value: 'district', label: 'Specific District', icon: Target },
-                { value: 'school', label: 'Specific School', icon: School }
+                { value: 'school', label: 'Specific School', icon: School },
+                { value: 'students', label: 'Specific Students', icon: Users }
               ].map(({ value, label, icon: Icon }) => (
                 <label key={value} className="flex items-center">
                   <input
@@ -634,7 +684,8 @@ const QuizManagementTab = () => {
                       targetType: e.target.value as any,
                       targetStateId: '',
                       targetDistrictId: '',
-                      targetSchoolId: ''
+                      targetSchoolId: '',
+                      targetStudentIds: []
                     })}
                     className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
                   />
@@ -657,7 +708,8 @@ const QuizManagementTab = () => {
                   ...quizData, 
                   targetStateId: e.target.value,
                   targetDistrictId: '',
-                  targetSchoolId: ''
+                  targetSchoolId: '',
+                  targetStudentIds: [] // Reset student IDs for non-students targets
                 })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               >
@@ -682,7 +734,8 @@ const QuizManagementTab = () => {
                 onChange={(e) => setQuizData({ 
                   ...quizData, 
                   targetDistrictId: e.target.value,
-                  targetSchoolId: ''
+                  targetSchoolId: '',
+                  targetStudentIds: [] // Reset student IDs for non-students targets
                 })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               >
@@ -714,6 +767,29 @@ const QuizManagementTab = () => {
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {/* Student IDs Selection */}
+          {quizData.targetType === 'students' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Student IDs (comma separated)</label>
+              <textarea
+                rows={3}
+                value={quizData.targetStudentIds.join(',')}
+                onChange={(e) => {
+                  const ids = e.target.value
+                    .split(',')
+                    .map((id) => id.trim().toUpperCase())
+                    .filter((id) => id);
+                  setQuizData({ ...quizData, targetStudentIds: ids });
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                placeholder="Enter student IDs separated by commas"
+              />
+              {quizData.targetStudentIds.length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">{quizData.targetStudentIds.length} student(s) selected</p>
+              )}
             </div>
           )}
         </div>

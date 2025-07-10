@@ -9,6 +9,7 @@ import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import Editor from 'react-simple-wysiwyg';
 
 interface Subject {
   id: string;
@@ -176,6 +177,13 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
     }
   };
 
+  // Helper function to strip HTML tags for validation
+  const stripHtml = (html: string) => {
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    return temp.textContent || temp.innerText || '';
+  };
+
   const resetForm = () => {
     setFormData({
       question: '',
@@ -191,11 +199,11 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
   const handleAddQuestion = async () => {
     // Comprehensive validation
     const errors = [];
-    if (!formData.question.trim()) errors.push("Question");
-    if (!formData.optionA.trim()) errors.push("Option A");
-    if (!formData.optionB.trim()) errors.push("Option B");
-    if (!formData.optionC.trim()) errors.push("Option C");
-    if (!formData.optionD.trim()) errors.push("Option D");
+    if (!stripHtml(formData.question).trim()) errors.push("Question");
+    if (!stripHtml(formData.optionA).trim()) errors.push("Option A");
+    if (!stripHtml(formData.optionB).trim()) errors.push("Option B");
+    if (!stripHtml(formData.optionC).trim()) errors.push("Option C");
+    if (!stripHtml(formData.optionD).trim()) errors.push("Option D");
 
     if (errors.length > 0) {
       toast({
@@ -207,7 +215,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
     }
 
     // Check for duplicate options
-    const options = [formData.optionA.trim(), formData.optionB.trim(), formData.optionC.trim(), formData.optionD.trim()];
+    const options = [stripHtml(formData.optionA).trim(), stripHtml(formData.optionB).trim(), stripHtml(formData.optionC).trim(), stripHtml(formData.optionD).trim()];
     const uniqueOptions = new Set(options);
     if (uniqueOptions.size !== options.length) {
       toast({
@@ -221,15 +229,15 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
     setIsLoading(true);
     try {
       const questionData = {
-        question: formData.question.trim(),
+        question: formData.question,
         options: {
-          a: formData.optionA.trim(),
-          b: formData.optionB.trim(),
-          c: formData.optionC.trim(),
-          d: formData.optionD.trim()
+          a: formData.optionA,
+          b: formData.optionB,
+          c: formData.optionC,
+          d: formData.optionD
         },
         correctOption: formData.correctOption,
-        explanation: formData.explanation.trim(),
+        explanation: formData.explanation,
         createdAt: new Date().toISOString()
       };
 
@@ -279,11 +287,11 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
 
     // Comprehensive validation
     const errors = [];
-    if (!formData.question.trim()) errors.push("Question");
-    if (!formData.optionA.trim()) errors.push("Option A");
-    if (!formData.optionB.trim()) errors.push("Option B");
-    if (!formData.optionC.trim()) errors.push("Option C");
-    if (!formData.optionD.trim()) errors.push("Option D");
+    if (!stripHtml(formData.question).trim()) errors.push("Question");
+    if (!stripHtml(formData.optionA).trim()) errors.push("Option A");
+    if (!stripHtml(formData.optionB).trim()) errors.push("Option B");
+    if (!stripHtml(formData.optionC).trim()) errors.push("Option C");
+    if (!stripHtml(formData.optionD).trim()) errors.push("Option D");
 
     if (errors.length > 0) {
       toast({
@@ -295,7 +303,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
     }
 
     // Check for duplicate options
-    const options = [formData.optionA.trim(), formData.optionB.trim(), formData.optionC.trim(), formData.optionD.trim()];
+    const options = [stripHtml(formData.optionA).trim(), stripHtml(formData.optionB).trim(), stripHtml(formData.optionC).trim(), stripHtml(formData.optionD).trim()];
     const uniqueOptions = new Set(options);
     if (uniqueOptions.size !== options.length) {
       toast({
@@ -309,15 +317,15 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
     setIsLoading(true);
     try {
       const questionData = {
-        question: formData.question.trim(),
+        question: formData.question,
         options: {
-          a: formData.optionA.trim(),
-          b: formData.optionB.trim(),
-          c: formData.optionC.trim(),
-          d: formData.optionD.trim()
+          a: formData.optionA,
+          b: formData.optionB,
+          c: formData.optionC,
+          d: formData.optionD
         },
         correctOption: formData.correctOption,
-        explanation: formData.explanation.trim()
+        explanation: formData.explanation
       };
 
       await updateDoc(doc(db, 'subjects', subject.id, 'questions', editingQuestion.id), questionData);
@@ -412,13 +420,16 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
                 <Label htmlFor="question" className="text-sm font-medium text-gray-700 flex items-center gap-1">
                   Question <span className="text-red-500">*</span>
                 </Label>
-                <Textarea
-                  id="question"
-                  value={formData.question}
-                  onChange={(e) => setFormData(prev => ({ ...prev, question: e.target.value }))}
-                  placeholder="Enter your question here..."
-                  className={`mt-1 min-h-[100px] ${!formData.question.trim() ? 'border-red-200 focus:border-red-400' : ''}`}
-                />
+                <div className="mt-1 border border-gray-300 rounded-md">
+                  <Editor
+                    value={formData.question}
+                    onChange={(e) => setFormData(prev => ({ ...prev, question: e.target.value }))}
+                    placeholder="Enter your question with formatting..."
+                    containerProps={{
+                      style: { minHeight: '100px', border: 'none' }
+                    }}
+                  />
+                </div>
               </div>
 
               {/* Options */}
@@ -427,49 +438,61 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
                   <Label htmlFor="optionA" className="text-sm font-medium text-gray-700 flex items-center gap-1">
                     Option A <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="optionA"
-                    value={formData.optionA}
-                    onChange={(e) => setFormData(prev => ({ ...prev, optionA: e.target.value }))}
-                    placeholder="Enter option A"
-                    className={`mt-1 ${!formData.optionA.trim() ? 'border-red-200 focus:border-red-400' : ''}`}
-                  />
+                  <div className="mt-1 border border-gray-300 rounded-md">
+                    <Editor
+                      value={formData.optionA}
+                      onChange={(e) => setFormData(prev => ({ ...prev, optionA: e.target.value }))}
+                      placeholder="Enter option A with formatting..."
+                      containerProps={{
+                        style: { minHeight: '60px', border: 'none' }
+                      }}
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="optionB" className="text-sm font-medium text-gray-700 flex items-center gap-1">
                     Option B <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="optionB"
-                    value={formData.optionB}
-                    onChange={(e) => setFormData(prev => ({ ...prev, optionB: e.target.value }))}
-                    placeholder="Enter option B"
-                    className={`mt-1 ${!formData.optionB.trim() ? 'border-red-200 focus:border-red-400' : ''}`}
-                  />
+                  <div className="mt-1 border border-gray-300 rounded-md">
+                    <Editor
+                      value={formData.optionB}
+                      onChange={(e) => setFormData(prev => ({ ...prev, optionB: e.target.value }))}
+                      placeholder="Enter option B with formatting..."
+                      containerProps={{
+                        style: { minHeight: '60px', border: 'none' }
+                      }}
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="optionC" className="text-sm font-medium text-gray-700 flex items-center gap-1">
                     Option C <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="optionC"
-                    value={formData.optionC}
-                    onChange={(e) => setFormData(prev => ({ ...prev, optionC: e.target.value }))}
-                    placeholder="Enter option C"
-                    className={`mt-1 ${!formData.optionC.trim() ? 'border-red-200 focus:border-red-400' : ''}`}
-                  />
+                  <div className="mt-1 border border-gray-300 rounded-md">
+                    <Editor
+                      value={formData.optionC}
+                      onChange={(e) => setFormData(prev => ({ ...prev, optionC: e.target.value }))}
+                      placeholder="Enter option C with formatting..."
+                      containerProps={{
+                        style: { minHeight: '60px', border: 'none' }
+                      }}
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="optionD" className="text-sm font-medium text-gray-700 flex items-center gap-1">
                     Option D <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="optionD"
-                    value={formData.optionD}
-                    onChange={(e) => setFormData(prev => ({ ...prev, optionD: e.target.value }))}
-                    placeholder="Enter option D"
-                    className={`mt-1 ${!formData.optionD.trim() ? 'border-red-200 focus:border-red-400' : ''}`}
-                  />
+                  <div className="mt-1 border border-gray-300 rounded-md">
+                    <Editor
+                      value={formData.optionD}
+                      onChange={(e) => setFormData(prev => ({ ...prev, optionD: e.target.value }))}
+                      placeholder="Enter option D with formatting..."
+                      containerProps={{
+                        style: { minHeight: '60px', border: 'none' }
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -496,13 +519,16 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
                 <Label htmlFor="explanation" className="text-sm font-medium text-gray-700">
                   Explanation
                 </Label>
-                <Textarea
-                  id="explanation"
-                  value={formData.explanation}
-                  onChange={(e) => setFormData(prev => ({ ...prev, explanation: e.target.value }))}
-                  placeholder="Explain why this is the correct answer..."
-                  className="mt-1"
-                />
+                <div className="mt-1 border border-gray-300 rounded-md">
+                  <Editor
+                    value={formData.explanation}
+                    onChange={(e) => setFormData(prev => ({ ...prev, explanation: e.target.value }))}
+                    placeholder="Explain why this is the correct answer with formatting..."
+                    containerProps={{
+                      style: { minHeight: '100px', border: 'none' }
+                    }}
+                  />
+                </div>
               </div>
 
               {/* Actions */}
@@ -613,26 +639,27 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
                 >
                   <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <p className="text-gray-800 font-medium mb-3 text-lg">
-                        {question.question}
-                      </p>
+                      <div 
+                        className="text-gray-800 font-medium mb-3 text-lg"
+                        dangerouslySetInnerHTML={{ __html: question.question }}
+                      />
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
-                        <span className="flex items-center">
+                        <div className="flex items-center">
                           <span className="font-semibold text-blue-600 mr-2">A:</span>
-                          {question.options?.a || 'N/A'}
-                        </span>
-                        <span className="flex items-center">
+                          <div dangerouslySetInnerHTML={{ __html: question.options?.a || 'N/A' }} />
+                        </div>
+                        <div className="flex items-center">
                           <span className="font-semibold text-blue-600 mr-2">B:</span>
-                          {question.options?.b || 'N/A'}
-                        </span>
-                        <span className="flex items-center">
+                          <div dangerouslySetInnerHTML={{ __html: question.options?.b || 'N/A' }} />
+                        </div>
+                        <div className="flex items-center">
                           <span className="font-semibold text-blue-600 mr-2">C:</span>
-                          {question.options?.c || 'N/A'}
-                        </span>
-                        <span className="flex items-center">
+                          <div dangerouslySetInnerHTML={{ __html: question.options?.c || 'N/A' }} />
+                        </div>
+                        <div className="flex items-center">
                           <span className="font-semibold text-blue-600 mr-2">D:</span>
-                          {question.options?.d || 'N/A'}
-                        </span>
+                          <div dangerouslySetInnerHTML={{ __html: question.options?.d || 'N/A' }} />
+                        </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <p className="text-sm text-green-600 font-semibold">
@@ -659,9 +686,10 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
                                       ✕
                                     </button>
                                   </div>
-                                  <div className="text-gray-700 text-sm leading-relaxed">
-                                    {question.explanation}
-                                  </div>
+                                  <div 
+                                    className="text-gray-700 text-sm leading-relaxed"
+                                    dangerouslySetInnerHTML={{ __html: question.explanation }}
+                                  />
                                 </div>
                               </div>
                             )}
@@ -707,24 +735,39 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
       {/* View Question Modal */}
       {viewingQuestion && (
         <Dialog open={!!viewingQuestion} onOpenChange={() => setViewingQuestion(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle className="text-xl font-bold text-gray-800">
                 Question Details
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
               <div>
                 <h3 className="font-semibold text-gray-700 mb-2">Question:</h3>
-                <p className="text-gray-800">{viewingQuestion.question}</p>
+                <div 
+                  className="text-gray-800"
+                  dangerouslySetInnerHTML={{ __html: viewingQuestion.question }}
+                />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700 mb-2">Options:</h3>
                 <div className="space-y-2">
-                  <p><span className="font-semibold text-blue-600">A:</span> {viewingQuestion.options?.a}</p>
-                  <p><span className="font-semibold text-blue-600">B:</span> {viewingQuestion.options?.b}</p>
-                  <p><span className="font-semibold text-blue-600">C:</span> {viewingQuestion.options?.c}</p>
-                  <p><span className="font-semibold text-blue-600">D:</span> {viewingQuestion.options?.d}</p>
+                  <div className="flex items-start">
+                    <span className="font-semibold text-blue-600 mr-2">A:</span>
+                    <div dangerouslySetInnerHTML={{ __html: viewingQuestion.options?.a }} />
+                  </div>
+                  <div className="flex items-start">
+                    <span className="font-semibold text-blue-600 mr-2">B:</span>
+                    <div dangerouslySetInnerHTML={{ __html: viewingQuestion.options?.b }} />
+                  </div>
+                  <div className="flex items-start">
+                    <span className="font-semibold text-blue-600 mr-2">C:</span>
+                    <div dangerouslySetInnerHTML={{ __html: viewingQuestion.options?.c }} />
+                  </div>
+                  <div className="flex items-start">
+                    <span className="font-semibold text-blue-600 mr-2">D:</span>
+                    <div dangerouslySetInnerHTML={{ __html: viewingQuestion.options?.d }} />
+                  </div>
                 </div>
               </div>
               <div>
@@ -734,7 +777,10 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
               {viewingQuestion.explanation && (
                 <div>
                   <h3 className="font-semibold text-gray-700 mb-2">Explanation:</h3>
-                  <p className="text-gray-800">{viewingQuestion.explanation}</p>
+                  <div 
+                    className="text-gray-800"
+                    dangerouslySetInnerHTML={{ __html: viewingQuestion.explanation }}
+                  />
                 </div>
               )}
             </div>
@@ -757,9 +803,10 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
                 Are you sure you want to delete this question? This action cannot be undone.
               </p>
               <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="text-sm text-gray-600 font-medium">
-                  {truncateText(deleteConfirmation.question, 100)}
-                </p>
+                <div 
+                  className="text-sm text-gray-600 font-medium"
+                  dangerouslySetInnerHTML={{ __html: truncateText(deleteConfirmation.question, 100) }}
+                />
               </div>
               <div className="flex gap-3 justify-end">
                 <Button

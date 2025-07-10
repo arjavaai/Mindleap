@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, BookOpen, Eye, Edit, Trash2, Calendar } from 'lucide-react';
-import { collection, addDoc, getDocs, query, orderBy, doc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -26,6 +26,7 @@ const DailyStreakQuestionsTab = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [addedSubject, setAddedSubject] = useState<Subject | null>(null);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -112,6 +113,48 @@ const DailyStreakQuestionsTab = () => {
     }
   };
 
+  const handleEditSubject = (subject: Subject) => {
+    setEditingSubject(subject);
+    setIsAddSubjectModalOpen(true);
+  };
+
+  const handleUpdateSubject = async (subjectName: string, scheduledDay: string) => {
+    if (!editingSubject) return;
+    
+    setIsLoading(true);
+    try {
+      await updateDoc(doc(db, 'subjects', editingSubject.id), {
+        name: subjectName.trim(),
+        scheduledDay: scheduledDay,
+      });
+
+      setSubjects(prev => 
+        prev.map(subject => 
+          subject.id === editingSubject.id 
+            ? { ...subject, name: subjectName.trim(), scheduledDay: scheduledDay }
+            : subject
+        ).sort((a, b) => a.name.localeCompare(b.name))
+      );
+      
+      setIsAddSubjectModalOpen(false);
+      setEditingSubject(null);
+
+      toast({
+        title: "Success! ✅",
+        description: "Subject updated successfully",
+      });
+    } catch (error) {
+      console.error('Error updating subject:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update subject",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleOpenQuestions = (subject: Subject) => {
     console.log('🎯 Opening questions for subject:', subject.id, subject.name);
     setSelectedSubject(subject);
@@ -188,12 +231,20 @@ const DailyStreakQuestionsTab = () => {
                 <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
                   <BookOpen className="w-6 h-6 text-white" />
                 </div>
-                <button
-                  onClick={() => handleDeleteSubject(subject.id)}
-                  className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEditSubject(subject)}
+                    className="p-2 text-blue-500 hover:bg-blue-100 rounded-lg transition-colors"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSubject(subject.id)}
+                    className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
               
               <h3 className="text-xl font-bold text-gray-800 mb-3">{subject.name}</h3>
@@ -209,8 +260,8 @@ const DailyStreakQuestionsTab = () => {
                 onClick={() => handleOpenQuestions(subject)}
                 className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white rounded-lg"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Questions
+                <Eye className="w-4 h-4 mr-2" />
+                View Questions
               </Button>
             </motion.div>
           ))
@@ -220,9 +271,13 @@ const DailyStreakQuestionsTab = () => {
       {/* Add Subject Modal */}
       <AddSubjectModal
         isOpen={isAddSubjectModalOpen}
-        onClose={() => setIsAddSubjectModalOpen(false)}
-        onAdd={handleAddSubject}
+        onClose={() => {
+          setIsAddSubjectModalOpen(false);
+          setEditingSubject(null);
+        }}
+        onAdd={editingSubject ? handleUpdateSubject : handleAddSubject}
         isLoading={isLoading}
+        editingSubject={editingSubject}
       />
 
       {/* Success Confirmation Modal */}

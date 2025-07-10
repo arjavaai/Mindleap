@@ -539,7 +539,10 @@ const DailyStreak = () => {
                         <Brain className="w-4 h-4" />
                         Explanation:
                       </h5>
-                      <p className="text-purple-700 text-sm">{todayRecord.explanation}</p>
+                      <p 
+                        className="text-purple-700 text-sm" 
+                        dangerouslySetInnerHTML={{ __html: todayRecord.explanation }}
+                      />
                     </div>}
                 </motion.div> : todayQuestion ? <motion.div initial={{
               opacity: 0,

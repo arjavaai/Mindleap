@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -43,6 +43,8 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
   const [showResult, setShowResult] = useState(false);
   const [timer, setTimer] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [isQuestionExpanded, setIsQuestionExpanded] = useState(false);
+  const explanationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -82,10 +84,20 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
       setTimeout(() => setShowConfetti(false), 3000);
     }
     
+    // Scroll to explanation after a short delay
+    setTimeout(() => {
+      if (explanationRef.current) {
+        explanationRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }
+    }, 1000);
+    
     // Call parent submit handler
     setTimeout(() => {
       onSubmit(selectedOption);
-    }, 3000); // Give more time to show result and explanation
+    }, 4000); // Give more time to show result and explanation
   };
 
   const getOptionStyle = (option: string) => {
@@ -110,6 +122,23 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const isQuestionLong = (questionText: string) => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = questionText;
+    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+    return textContent.split('\n').length > 8 || textContent.length > 400;
+  };
+
+  const truncateQuestion = (questionText: string) => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = questionText;
+    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+    if (textContent.length > 400) {
+      return questionText.substring(0, 400) + '...';
+    }
+    return questionText;
   };
 
   // Confetti particles
@@ -166,7 +195,7 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: 50 }}
           transition={{ type: "spring", duration: 0.5 }}
-          className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto relative"
+          className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto relative mx-4 sm:mx-6 md:mx-8"
         >
           {/* Animated Background Pattern */}
           <div className="absolute inset-0 overflow-hidden rounded-3xl">
@@ -190,22 +219,22 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
           </div>
 
           {/* Header */}
-          <div className="relative z-10 bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 p-6 rounded-t-3xl">
+          <div className="relative z-10 bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 p-3 sm:p-4 rounded-t-3xl">
             <div className="flex items-center justify-between text-white">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                 <motion.div
-                  className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm"
+                  className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm flex-shrink-0"
                   animate={{
                     scale: [1, 1.1, 1],
                     rotate: [0, 5, -5, 0]
                   }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <Brain className="w-6 h-6 text-white" />
+                  <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </motion.div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <motion.h2 
-                    className="text-2xl font-bold"
+                    className="text-lg sm:text-2xl font-bold truncate"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2 }}
@@ -213,7 +242,7 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                     {question.subject} Challenge
                   </motion.h2>
                   <motion.p 
-                    className="text-purple-100"
+                    className="text-purple-100 text-sm sm:text-base hidden sm:block"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 }}
@@ -223,9 +252,9 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                 </div>
               </div>
               
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                 <motion.div 
-                  className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-xl backdrop-blur-sm"
+                  className="flex items-center gap-1 sm:gap-2 bg-white/20 px-2 sm:px-4 py-1 sm:py-2 rounded-xl backdrop-blur-sm"
                   animate={{
                     boxShadow: [
                       "0 0 0 rgba(255,255,255,0.1)",
@@ -235,8 +264,8 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                   }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <Clock className="w-5 h-5" />
-                  <span className="font-mono font-bold text-lg">{formatTime(timer)}</span>
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="font-mono font-bold text-sm sm:text-lg">{formatTime(timer)}</span>
                 </motion.div>
                 
                 <motion.button
@@ -245,85 +274,35 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
                 </motion.button>
               </div>
             </div>
           </div>
 
-          {/* Explanation Section - Shows at top when answered */}
-          <AnimatePresence>
-            {showResult && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.5 }}
-                className="relative z-10 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-b-4 border-indigo-200"
-              >
-                <div className="p-6">
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="flex items-start gap-4"
-                  >
-                    <motion.div
-                      className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center"
-                      animate={{
-                        rotate: [0, 360],
-                        scale: [1, 1.1, 1]
-                      }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    >
-                      <Lightbulb className="w-6 h-6 text-white" />
-                    </motion.div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-indigo-800 mb-3 flex items-center gap-2">
-                        💡 Explanation
-                        <motion.div
-                          animate={{ rotate: [0, 10, -10, 0] }}
-                          transition={{ duration: 1, repeat: Infinity }}
-                        >
-                          <Sparkles className="w-5 h-5 text-yellow-500" />
-                        </motion.div>
-                      </h3>
-                      <motion.p 
-                        className="text-indigo-700 text-lg leading-relaxed"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                      >
-                        {question.explanation}
-                      </motion.p>
-                    </div>
-                  </motion.div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+
 
           {/* Question Content */}
-          <div className="relative z-10 p-8">
+          <div className="relative z-10 p-3 sm:p-4 md:p-6">
             {/* Result Message */}
             <AnimatePresence>
               {showResult && (
                 <motion.div
                   initial={{ opacity: 0, y: -20, scale: 0.8 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  className="text-center mb-8"
+                  className="text-center mb-6"
                 >
                   <motion.div
-                    className={`inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-xl font-bold ${
+                    className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl text-lg font-bold ${
                       selectedOption === question.correctOption 
-                        ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border-2 border-green-300' 
-                        : 'bg-gradient-to-r from-red-100 to-pink-100 text-red-700 border-2 border-red-300'
+                        ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border border-green-300' 
+                        : 'bg-gradient-to-r from-red-100 to-pink-100 text-red-700 border border-red-300'
                     }`}
                     animate={{
-                      scale: [1, 1.05, 1],
+                      scale: [1, 1.02, 1],
                       boxShadow: [
                         "0 0 0 rgba(0,0,0,0.1)",
-                        "0 10px 30px rgba(0,0,0,0.2)",
+                        "0 5px 15px rgba(0,0,0,0.2)",
                         "0 0 0 rgba(0,0,0,0.1)"
                       ]
                     }}
@@ -331,21 +310,21 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                   >
                     {selectedOption === question.correctOption ? (
                       <>
-                        <Trophy className="w-8 h-8" />
+                        <Trophy className="w-6 h-6" />
                         🎉 Fantastic! You got it right!
-                        <Star className="w-8 h-8" />
+                        <Star className="w-6 h-6" />
                       </>
                     ) : (
                       <>
-                        <Target className="w-8 h-8" />
+                        <Target className="w-6 h-6" />
                         💪 Good try! Learn from this!
-                        <ArrowRight className="w-8 h-8" />
+                        <ArrowRight className="w-6 h-6" />
                       </>
                     )}
                   </motion.div>
                   
                   <motion.p 
-                    className="text-lg text-gray-600 mt-4"
+                    className="text-base text-gray-600 mt-3"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
@@ -361,21 +340,34 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
 
             {/* Question */}
             <motion.div 
-              className="mb-8"
+              className="mb-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-6 rounded-2xl border-2 border-blue-100">
-                <h3 className="text-2xl font-bold text-gray-800 leading-relaxed">
-                  {question.question}
-                </h3>
+              <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-3 sm:p-4 rounded-xl border border-blue-100">
+                <div 
+                  className="text-sm sm:text-base md:text-lg font-semibold text-gray-800 leading-snug"
+                  dangerouslySetInnerHTML={{ 
+                    __html: isQuestionLong(question.question) && !isQuestionExpanded 
+                      ? truncateQuestion(question.question) 
+                      : question.question 
+                  }}
+                />
+                {isQuestionLong(question.question) && (
+                  <button
+                    onClick={() => setIsQuestionExpanded(!isQuestionExpanded)}
+                    className="mt-2 text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors"
+                  >
+                    {isQuestionExpanded ? 'Read Less' : 'Read More'}
+                  </button>
+                )}
               </div>
             </motion.div>
 
             {/* Options */}
             <motion.div 
-              className="space-y-4 mb-8"
+              className="space-y-2 mb-6"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
@@ -385,21 +377,21 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                   key={key}
                   onClick={() => handleOptionSelect(key)}
                   disabled={submitted}
-                  className={`w-full text-left p-6 border-3 rounded-2xl transition-all duration-300 ${getOptionStyle(key)} ${
+                  className={`w-full text-left p-3 sm:p-4 border-2 rounded-xl transition-all duration-300 ${getOptionStyle(key)} ${
                     submitted ? 'cursor-not-allowed' : 'cursor-pointer'
                   }`}
                   initial={{ opacity: 0, x: -50 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 + index * 0.1 }}
                   whileHover={!submitted ? { 
-                    scale: 1.02,
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+                    scale: 1.01,
+                    boxShadow: "0 5px 15px rgba(0,0,0,0.1)"
                   } : {}}
-                  whileTap={!submitted ? { scale: 0.98 } : {}}
+                  whileTap={!submitted ? { scale: 0.99 } : {}}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <motion.div
-                      className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg ${
+                      className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center font-bold text-sm sm:text-base ${
                         selectedOption === key 
                           ? 'bg-purple-500 text-white' 
                           : 'bg-gray-100 text-gray-600'
@@ -412,7 +404,10 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                     >
                       {key.toUpperCase()}
                     </motion.div>
-                    <span className="font-semibold text-lg flex-1">{value}</span>
+                    <div 
+                      className="font-medium text-sm sm:text-base flex-1" 
+                      dangerouslySetInnerHTML={{ __html: value }}
+                    />
                     
                     {/* Result Icons */}
                     <AnimatePresence>
@@ -440,6 +435,63 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
               ))}
             </motion.div>
 
+            {/* Explanation Section - Shows below options when answered */}
+            <AnimatePresence>
+              {showResult && (
+                <motion.div
+                  ref={explanationRef}
+                  initial={{ opacity: 0, height: 0, y: 20 }}
+                  animate={{ opacity: 1, height: 'auto', y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: 20 }}
+                  transition={{ duration: 0.8, delay: 0.5 }}
+                  className="mb-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-xl border border-indigo-200 shadow-md"
+                >
+                  <div className="p-3 sm:p-4">
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.7 }}
+                      className="flex items-start gap-4"
+                    >
+                      <motion.div
+                        className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center"
+                        animate={{
+                          rotate: [0, 360],
+                          scale: [1, 1.1, 1]
+                        }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      >
+                        <Lightbulb className="w-6 h-6 text-white" />
+                      </motion.div>
+                      <div className="flex-1">
+                        <motion.h3 
+                          className="text-base sm:text-lg font-bold text-indigo-800 mb-2 flex items-center gap-2"
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.8 }}
+                        >
+                          💡 Explanation
+                          <motion.div
+                            animate={{ rotate: [0, 10, -10, 0] }}
+                            transition={{ duration: 1, repeat: Infinity }}
+                          >
+                            <Sparkles className="w-4 h-4 text-yellow-500" />
+                          </motion.div>
+                        </motion.h3>
+                        <motion.div 
+                          className="text-indigo-700 text-sm sm:text-base leading-relaxed"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.9 }}
+                          dangerouslySetInnerHTML={{ __html: question.explanation }}
+                        />
+                      </div>
+                    </motion.div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Submit Button */}
             <AnimatePresence>
               {!submitted && (
@@ -452,20 +504,20 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                   <motion.button
                     onClick={handleSubmit}
                     disabled={!selectedOption}
-                    className={`w-full py-4 px-8 rounded-2xl font-bold text-xl transition-all duration-300 ${
+                    className={`w-full py-3 px-6 rounded-xl font-bold text-lg transition-all duration-300 ${
                       selectedOption 
                         ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg' 
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                     whileHover={selectedOption ? { 
-                      scale: 1.02,
-                      boxShadow: "0 20px 40px rgba(147, 51, 234, 0.3)"
+                      scale: 1.01,
+                      boxShadow: "0 10px 20px rgba(147, 51, 234, 0.3)"
                     } : {}}
-                    whileTap={selectedOption ? { scale: 0.98 } : {}}
+                    whileTap={selectedOption ? { scale: 0.99 } : {}}
                     animate={selectedOption ? {
                       boxShadow: [
                         "0 0 0 rgba(147, 51, 234, 0.4)",
-                        "0 0 30px rgba(147, 51, 234, 0.6)",
+                        "0 0 15px rgba(147, 51, 234, 0.6)",
                         "0 0 0 rgba(147, 51, 234, 0.4)"
                       ]
                     } : {}}
@@ -473,10 +525,10 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                       boxShadow: { duration: 2, repeat: Infinity }
                     }}
                   >
-                    <div className="flex items-center justify-center gap-3">
-                      <Zap className="w-6 h-6" />
+                    <div className="flex items-center justify-center gap-2">
+                      <Zap className="w-5 h-5" />
                       Submit Answer
-                      <Zap className="w-6 h-6" />
+                      <Zap className="w-5 h-5" />
                     </div>
                   </motion.button>
                 </motion.div>

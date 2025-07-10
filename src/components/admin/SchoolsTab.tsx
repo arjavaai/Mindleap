@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, School, MapPin, Hash, Check, Edit, Trash2, Upload, Filter, Table, FileDown, Search, Eye } from 'lucide-react';
-import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc, where, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
@@ -40,11 +40,14 @@ interface School {
   poc?: string;
   schoolEmail?: string;
   hasComputerLab?: 'Yes' | 'No';
+  schoolScore?: number;
 }
 
 const SchoolsTab = () => {
   const [schools, setSchools] = useState<School[]>([]);
   const [states, setStates] = useState<State[]>([]);
+  const [schoolScores, setSchoolScores] = useState<{ [key: string]: number }>({});
+  const [scoresLoaded, setScoresLoaded] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -98,6 +101,12 @@ const SchoolsTab = () => {
     fetchSchools();
   }, []);
 
+  useEffect(() => {
+    if (schools.length > 0) {
+      fetchSchoolScores();
+    }
+  }, [schools]);
+
   const fetchStates = async () => {
     try {
       const q = query(collection(db, 'states'), orderBy('stateName'));
@@ -139,6 +148,61 @@ const SchoolsTab = () => {
       toast({
         title: "Error",
         description: "Failed to fetch schools",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const fetchSchoolScores = async () => {
+    try {
+      const scores: {[key: string]: number} = {};
+      
+      for (const school of schools) {
+        let totalScore = 0;
+        
+        // Get all students for this school
+        const studentsQuery = query(
+          collection(db, 'students'),
+          where('schoolCode', '==', school.schoolCode)
+        );
+        
+        const studentsSnapshot = await getDocs(studentsQuery);
+        
+        // Calculate total score for each student and sum them up
+        for (const studentDoc of studentsSnapshot.docs) {
+          const studentData = studentDoc.data();
+          // Prefer the stored UID (Firebase Auth UID) if it exists; fallback to document ID
+          const studentUid = (studentData.uid as string | undefined) || studentDoc.id;
+
+          // Get student's daily streak data
+          const streakDoc = await getDoc(doc(db, 'dailyStreaks', studentUid));
+          
+          if (streakDoc.exists()) {
+            const streakData = streakDoc.data();
+            let studentScore = streakData.totalPoints || 0;
+            
+            // If no stored total, calculate from records
+            if (studentScore === 0 && streakData.records) {
+              const records = Object.values(streakData.records) as any[];
+              studentScore = records.reduce((total, record) => {
+                return total + (record.points || (record.isCorrect ? 200 : 100));
+              }, 0);
+            }
+            
+            totalScore += studentScore;
+          }
+        }
+        
+        scores[school.schoolCode] = totalScore;
+      }
+      
+      setSchoolScores(scores);
+      setScoresLoaded(true);
+    } catch (error) {
+      console.error('Error fetching school scores:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch school scores",
         variant: "destructive"
       });
     }
@@ -433,15 +497,24 @@ const SchoolsTab = () => {
   };
 
   // Filter schools based on search term and filters
-  const filteredSchools = schools.filter(school => {
-    const matchesSearch = school.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         school.schoolCode.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesState = !filterState || filterState === 'all' || school.state === filterState;
-    const matchesDistrict = !filterDistrict || filterDistrict === 'all' || school.districtCode === filterDistrict;
-    
-    return matchesSearch && matchesState && matchesDistrict;
-  });
+  const filteredSchools = schools
+    .filter((school) => {
+      const matchesSearch =
+        school.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        school.schoolCode.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesState = !filterState || filterState === 'all' || school.state === filterState;
+      const matchesDistrict =
+        !filterDistrict || filterDistrict === 'all' || school.districtCode === filterDistrict;
+
+      return matchesSearch && matchesState && matchesDistrict;
+    })
+    // Sort by total score in descending order (highest first)
+    .sort((a, b) => {
+      const scoreA = schoolScores[a.schoolCode] || 0;
+      const scoreB = schoolScores[b.schoolCode] || 0;
+      return scoreB - scoreA;
+    });
 
   const exportSchoolData = () => {
     if (filteredSchools.length === 0) {
@@ -459,6 +532,7 @@ const SchoolsTab = () => {
       'District Name': school.districtName,
       'District Code': school.districtCode,
       'State': school.state,
+      'School Score': schoolScores[school.schoolCode] || 0,
       'Status': school.status
     }));
 
@@ -560,7 +634,10 @@ const SchoolsTab = () => {
             <SelectContent>
               <SelectItem value="all">All Districts</SelectItem>
               {(filterState === 'all' ? allDistricts : filterDistricts).map((district) => (
-                <SelectItem key={district.districtCode} value={district.districtCode}>
+                <SelectItem 
+                  key={`${district.districtCode}-${(district as any).stateName ?? filterState}`} 
+                  value={district.districtCode}
+                >
                   {district.districtName} ({district.districtCode})
                 </SelectItem>
               ))}
@@ -580,50 +657,55 @@ const SchoolsTab = () => {
       </motion.div>
 
       {/* Schools Table */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
         className="bg-white rounded-lg shadow-sm border"
       >
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Table className="w-5 h-5 text-gray-500" />
-              <h3 className="text-lg font-semibold text-gray-900">Schools Data</h3>
-              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">
-                {filteredSchools.length} schools
-              </span>
+        {scoresLoaded ? (
+          <>
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Table className="w-5 h-5 text-gray-500" />
+                  <h3 className="text-lg font-semibold text-gray-900">Schools Data</h3>
+                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">
+                    {filteredSchools.length} schools
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  School Details
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  School Code
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  District
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  State
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredSchools.map((school) => (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      School Details
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      School Code
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      District
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      State
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      School Score
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredSchools.map((school) => (
                 <tr key={school.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -648,6 +730,14 @@ const SchoolsTab = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{school.state}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-semibold text-blue-600">
+                      {schoolScores[school.schoolCode] || 0} pts
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Combined students score
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -694,6 +784,10 @@ const SchoolsTab = () => {
             </tbody>
           </table>
         </div>
+          </>
+        ) : (
+          <div className="p-8 text-center text-gray-500">Loading scores...</div>
+        )}
 
         {filteredSchools.length === 0 && (
           <div className="text-center py-12">

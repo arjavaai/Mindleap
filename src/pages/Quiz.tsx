@@ -45,10 +45,11 @@ interface Quiz {
   options: string[];
   correctAnswer: number;
   duration: number; // in seconds
-  targetType: 'all' | 'state' | 'district' | 'school';
+  targetType: 'all' | 'state' | 'district' | 'school' | 'students';
   targetId?: string;
   targetStateId?: string;
   targetDistrictId?: string;
+  targetStudentIds?: string[];
   expiryType: 'never' | 'hours' | 'days';
   expiryValue?: number;
   createdAt: any;
@@ -126,6 +127,15 @@ const Quiz = () => {
       fetchStudentData();
     }
   }, [user]);
+
+  // Refetch quizzes once we have student information to include student-specific quizzes
+  useEffect(() => {
+    if (user && studentData) {
+      setLoading(true);
+      fetchAvailableQuizzes();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentData]);
 
   // Timer effect
   useEffect(() => {
@@ -297,6 +307,25 @@ const Quiz = () => {
           } else {
             console.log(`No school found with schoolCode: ${studentData.schoolCode}`);
           }
+        }
+
+        // Fetch student-specific quizzes
+        if (studentData.studentId) {
+          const studentQuizzesQuery = query(
+            quizzesRef,
+            where('targetType', '==', 'students'),
+            where('targetStudentIds', 'array-contains', studentData.studentId)
+          );
+          const studentQuizzesSnapshot = await getDocs(studentQuizzesQuery);
+          console.log('Found student-specific quizzes:', studentQuizzesSnapshot.size);
+
+          studentQuizzesSnapshot.forEach((doc) => {
+            const quizData = { id: doc.id, ...doc.data() } as Quiz;
+            const isActive = quizData.isActive !== undefined ? quizData.isActive : true;
+            if (isActive && isQuizActive(quizData)) {
+              quizzes.push(quizData);
+            }
+          });
         }
       }
 
@@ -564,6 +593,7 @@ const Quiz = () => {
       case 'state': return <MapPin className="w-4 h-4" />;
       case 'district': return <Target className="w-4 h-4" />;
       case 'school': return <School className="w-4 h-4" />;
+      case 'students': return <Users className="w-4 h-4" />;
       default: return <Globe className="w-4 h-4" />;
     }
   };

@@ -14,7 +14,13 @@ import WebinarManagementTab from './WebinarManagementTab';
 import WorkshopManagementTab from './WorkshopManagementTab';
 
 const AdminPanel = () => {
-  const [activeTab, setActiveTab] = useState('schools');
+  // Persist the selected tab across reloads
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('adminActiveTab') || 'schools';
+    }
+    return 'schools';
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Effect to handle body scroll
@@ -52,8 +58,9 @@ const AdminPanel = () => {
     { id: 'debug', label: 'Debug Tools', icon: Bug },
   ];
 
-  const handleTabClick = (tabId) => {
+  const handleTabClick = (tabId: string) => {
     setActiveTab(tabId);
+    localStorage.setItem('adminActiveTab', tabId);
     setIsSidebarOpen(false); // Always close sidebar on tab selection
   };
 
