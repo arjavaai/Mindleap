@@ -1158,16 +1158,7 @@ const Quiz = () => {
               </motion.button>
             </div>
             
-            {/* Profile Icon */}
-            {user && (
-              <button
-                onClick={() => setShowProfileModal(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
-              >
-                <User className="w-5 h-5 text-blue-600" />
-                <span className="text-sm font-medium text-blue-600">Profile</span>
-              </button>
-            )}
+            {/* Profile Icon removed as per request */}
           </div>
         </div>
       </header>

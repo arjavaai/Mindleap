@@ -28,6 +28,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import StudentHeader from '../components/StudentHeader';
 
 interface Webinar {
   id: string;
@@ -368,43 +369,7 @@ const Webinars = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-blue-50 to-purple-50">
       {/* Header */}
-      <motion.header
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ type: "spring", stiffness: 100 }}
-        className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-white/20 shadow-lg"
-      >
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                <span>Back to Dashboard</span>
-              </button>
-              <div className="h-6 w-px bg-gray-300"></div>
-              <div className="flex items-center gap-3">
-                <Video className="w-8 h-8 text-purple-600" />
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Live Webinars</h1>
-                  <p className="text-sm text-gray-600">Educational sessions and workshops</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">{studentData?.name}</p>
-                <p className="text-xs text-gray-600">{studentData?.studentId}</p>
-              </div>
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.header>
+      <StudentHeader backTo="/dashboard" />
 
       <div className="container mx-auto px-4 py-8">
         {/* Tab Navigation */}

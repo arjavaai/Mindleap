@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Progress } from '../components/ui/progress';
 import { Badge } from '../components/ui/badge';
+import StudentHeader from '../components/StudentHeader';
 
 interface SubjectReport {
   subjectName: string;
@@ -271,62 +272,7 @@ ${monthlyReport.subjects.length > 0 ?
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
       {/* Header */}
-      <motion.header
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-white/20 shadow-lg"
-      >
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/dashboard')}
-                className="flex items-center gap-2"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Back to Dashboard
-              </Button>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-800">Monthly Reports</h1>
-                  <p className="text-sm text-gray-600">Track your progress</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <Select
-                value={selectedMonth.toISOString()}
-                onValueChange={(value) => setSelectedMonth(new Date(value))}
-              >
-                <SelectTrigger className="w-48">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {generateMonthOptions().map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              {monthlyReport && (
-                <Button onClick={downloadReport} className="flex items-center gap-2">
-                  <Download className="w-4 h-4" />
-                  Download Report
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      </motion.header>
+      <StudentHeader backTo="/dashboard" />
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">

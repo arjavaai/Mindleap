@@ -30,6 +30,8 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import ShieldProgressBar from '../components/ui/ShieldProgressBar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+// New unified header
+import StudentHeader from '../components/StudentHeader';
 
 interface StudentData {
   streakCount: number;
@@ -407,192 +409,11 @@ const Dashboard = () => {
       </div>
 
       {/* Sticky Header */}
-      <motion.header
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ type: "spring", stiffness: 100 }}
-        className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-white/20 shadow-lg"
-      >
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            {/* Logo */}
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-3"
-            >
-              <motion.div 
-                className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center"
-                animate={{
-                  rotate: [0, 360],
-                  scale: [1, 1.1, 1]
-                }}
-                transition={{ duration: 4, repeat: Infinity }}
-              >
-                <Brain className="w-7 h-7 text-white" />
-              </motion.div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-800">
-                  Mind<span className="text-purple-600">Leap</span>
-                </h1>
-                <p className="text-sm text-gray-600">Learning Platform</p>
-              </div>
-            </motion.div>
-
-            {/* Right Side - Stats & Actions */}
-            <div className="flex items-center gap-4">
-              {/* Total Points */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="hidden md:flex items-center gap-2 bg-gradient-to-r from-yellow-100 to-orange-100 px-4 py-2 rounded-full"
-              >
-                <Star className="w-5 h-5 text-yellow-600" />
-                <span className="text-sm font-bold text-yellow-800">
-                  {studentData.totalPoints} Points
-                </span>
-              </motion.div>
-
-              {/* Streak Count */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className={`flex items-center gap-2 bg-gradient-to-r ${getStreakColor()} px-4 py-2 rounded-full text-white`}
-              >
-                <motion.div
-                  animate={{ 
-                    scale: [1, 1.2, 1],
-                    rotate: [0, 10, -10, 0]
-                  }}
-                  transition={{ 
-                    duration: 2,
-                    repeat: Infinity
-                  }}
-                >
-                  <Flame className="w-5 h-5" />
-                </motion.div>
-                <span className="text-sm font-bold">
-                  {studentData.streakCount} Day Streak
-                </span>
-              </motion.div>
-
-              {/* Level Badge */}
-              {getBadgeFromPoints(studentData.totalPoints) && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.05 }}
-                className="relative"
-              >
-                <motion.div
-                  animate={{ 
-                    boxShadow: [
-                      '0 0 20px rgba(147, 51, 234, 0.3)',
-                      '0 0 30px rgba(147, 51, 234, 0.6)',
-                      '0 0 20px rgba(147, 51, 234, 0.3)'
-                    ]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                    className={`flex items-center gap-2 bg-gradient-to-r ${getBadgeColor(getBadgeFromPoints(studentData.totalPoints))} px-4 py-2 rounded-full text-white`}
-                >
-                  <img 
-                      src={getMedalIcon(getBadgeFromPoints(studentData.totalPoints))} 
-                      alt={`${getBadgeFromPoints(studentData.totalPoints)} Shield`}
-                    className="w-6 h-6 object-contain"
-                  />
-                    <span className="text-sm font-bold">{getBadgeFromPoints(studentData.totalPoints)}</span>
-                  </motion.div>
-                </motion.div>
-              )}
-
-              {/* Profile Modal */}
-              <Dialog>
-                <DialogTrigger asChild>
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    whileHover={{ scale: 1.05 }}
-                    className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-white hover:from-purple-600 hover:to-pink-600 transition-all duration-200"
-                  >
-                    <User className="w-5 h-5" />
-                  </motion.button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl font-bold text-center mb-4">Student Profile</DialogTitle>
-                  </DialogHeader>
-                  {profileData && (
-                    <div className="space-y-4">
-                      <div className="text-center">
-                        <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <User className="w-10 h-10 text-white" />
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-800">{studentData.name}</h3>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <label className="text-sm font-medium text-gray-600">Student ID</label>
-                          <p className="text-gray-800">{profileData.studentId || 'Not assigned'}</p>
-                        </div>
-                        
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <label className="text-sm font-medium text-gray-600">School</label>
-                          <p className="text-gray-800">{profileData.school || profileData.schoolName || profileData.schoolCode || 'Not assigned'}</p>
-                        </div>
-                        
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <label className="text-sm font-medium text-gray-600">School ID</label>
-                          <p className="text-gray-800">{profileData.schoolId || profileData.schoolCode || 'Not assigned'}</p>
-                        </div>
-                        
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <label className="text-sm font-medium text-gray-600">District</label>
-                          <p className="text-gray-800">{profileData.district || profileData.districtName || profileData.districtCode || 'Not assigned'}</p>
-                        </div>
-                        
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <label className="text-sm font-medium text-gray-600">District ID</label>
-                          <p className="text-gray-800">{profileData.districtId || profileData.districtCode || 'Not assigned'}</p>
-                        </div>
-                        
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <label className="text-sm font-medium text-gray-600">State</label>
-                          <p className="text-gray-800">{profileData.state || profileData.stateName || 'Not assigned'}</p>
-                        </div>
-                        
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <label className="text-sm font-medium text-gray-600">State ID</label>
-                          <p className="text-gray-800">{profileData.stateId || profileData.stateCode || 'Not assigned'}</p>
-                        </div>
-                        
-                        <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-3 rounded-lg">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-gray-600">Total Points</span>
-                            <span className="text-lg font-bold text-purple-600">{studentData.totalPoints}</span>
-                          </div>
-                          <div className="flex justify-between items-center mt-1">
-                            <span className="text-sm font-medium text-gray-600">Current Streak</span>
-                            <span className="text-lg font-bold text-orange-600">{studentData.streakCount} days</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </DialogContent>
-              </Dialog>
-
-              {/* Sign Out Button */}
-              <button
-                onClick={handleSignOut}
-                className="hidden md:flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white/70 backdrop-blur-sm border border-gray-300 rounded-xl hover:bg-white hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 whitespace-nowrap flex-shrink-0"
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      </motion.header>
+      <StudentHeader 
+        showBackButton={false} 
+        totalPoints={studentData.totalPoints} 
+        currentStreak={studentData.streakCount} 
+      />
 
       {/* Main Content */}
       <motion.div
@@ -860,6 +681,10 @@ const Dashboard = () => {
           </motion.div>
         </motion.div>
 
+        {/* Shield Progression Card */}
+        <motion.div variants={itemVariants} className="mt-8">
+          <ShieldProgressBar currentPoints={studentData.totalPoints} />
+        </motion.div>
 
       </motion.div>
     </div>

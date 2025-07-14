@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Trophy, Medal, Crown, Star } from 'lucide-react';
+import StudentHeader from '../components/StudentHeader';
 import { useNavigate } from 'react-router-dom';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../lib/firebase';
@@ -152,24 +153,8 @@ const Leaderboard = () => {
       </div>;
   }
   return <div className="min-h-screen bg-gradient-to-br from-orange-50 via-blue-50 to-purple-50">
-      {/* Header */}
-      <div className="bg-white shadow-lg border-b border-gray-100">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 text-gray-600 hover:text-orange-600 transition-colors">
-              <ArrowLeft className="w-5 h-5" />
-              <span className="font-medium">Back to Dashboard</span>
-            </button>
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-800">
-                🏆 School Leaderboard
-              </h1>
-              <p className="text-gray-600">Top performers in daily streak challenges</p>
-            </div>
-            <div className="w-32"></div> {/* Spacer for center alignment */}
-          </div>
-        </div>
-      </div>
+      {/* Unified Header */}
+      <StudentHeader backTo="/dashboard" />
 
       {/* Leaderboard Content */}
       <div className="container mx-auto px-6 py-8">

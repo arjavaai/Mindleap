@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '../components/ui/badge';
+import StudentHeader from '../components/StudentHeader';
 
 interface Workshop {
   id: string;
@@ -268,7 +269,11 @@ const Workshops = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-blue-50 to-purple-50">
+      {/* Unified Header */}
+      <StudentHeader backTo="/dashboard" />
+ 
+      {/* Main Content */}
       <motion.div 
         className="container mx-auto px-4 py-8"
         initial="hidden"

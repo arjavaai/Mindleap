@@ -96,9 +96,9 @@ const ShieldProgressBar: React.FC<ShieldProgressBarProps> = ({ currentPoints, cl
   const overallProgress = getOverallProgress();
 
   return (
-    <div className={`bg-white rounded-xl p-2 shadow-xl border border-gray-100 ${className}`}>
+    <div className={`bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-6 ${className}`}>
       {/* Header */}
-      <div className="text-center mb-2">
+      <div className="text-center mb-6">
         <motion.h3 
           className="text-lg font-bold text-gray-800 mb-1"
           initial={{ opacity: 0, y: -20 }}
@@ -126,9 +126,9 @@ const ShieldProgressBar: React.FC<ShieldProgressBarProps> = ({ currentPoints, cl
       </div>
 
       {/* Progress Line and Shields */}
-      <div className="relative">
+      <div className="relative pt-4">
         {/* Background Progress Line */}
-        <div className="absolute top-7 left-4 right-4 h-1 bg-gray-200 rounded-full">
+        <div className="absolute top-7 left-12 right-12 h-2 bg-gray-200 rounded-full">
           {/* Animated Progress Fill */}
           <motion.div
             className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 rounded-full relative overflow-hidden"
@@ -152,7 +152,7 @@ const ShieldProgressBar: React.FC<ShieldProgressBarProps> = ({ currentPoints, cl
         </div>
 
         {/* Shields Row */}
-        <div className="flex justify-between items-center relative z-10">
+        <div className="flex justify-between items-start relative z-10">
           {shields.map((shield, index) => {
             const isUnlocked = currentPoints >= shield.points;
             const isCurrent = currentShieldIndex === index;
@@ -161,11 +161,11 @@ const ShieldProgressBar: React.FC<ShieldProgressBarProps> = ({ currentPoints, cl
             return (
               <motion.div
                 key={shield.name}
-                className="flex flex-col items-center"
+                className="flex flex-col items-center text-center w-20"
                 initial={{ opacity: 0, scale: 0, y: 30 }}
                 animate={{ 
                   opacity: 1, 
-                  scale: isCurrent ? 1.08 : 0.95,
+                  scale: isCurrent ? 1.05 : 0.9,
                   y: 0
                 }}
                 transition={{ 
@@ -177,7 +177,7 @@ const ShieldProgressBar: React.FC<ShieldProgressBarProps> = ({ currentPoints, cl
               >
                 {/* Shield Container */}
                 <motion.div
-                  className={`relative w-12 h-12 rounded-full p-1 border-2 ${
+                  className={`relative w-14 h-14 rounded-full p-1 border-2 flex items-center justify-center ${
                     isUnlocked 
                       ? `border-current ${shield.textColor} ${shield.bgColor}` 
                       : 'border-gray-300 bg-gray-100'
@@ -188,7 +188,7 @@ const ShieldProgressBar: React.FC<ShieldProgressBarProps> = ({ currentPoints, cl
                       '0 0 15px rgba(147, 51, 234, 0.5)',
                       '0 0 0 rgba(147, 51, 234, 0)'
                     ],
-                    scale: [1.08, 1.13, 1.08]
+                    scale: [1.05, 1.1, 1.05]
                   } : {}}
                   transition={{ duration: 2, repeat: Infinity }}
                   whileHover={{ scale: isUnlocked ? 1.03 : 1.01 }}
@@ -198,198 +198,99 @@ const ShieldProgressBar: React.FC<ShieldProgressBarProps> = ({ currentPoints, cl
                     {isUnlocked ? (
                       <motion.div
                         key="shield"
-                        initial={{ opacity: 0, rotate: -180, scale: 0 }}
-                        animate={{ 
-                          opacity: 1, 
-                          rotate: 0, 
-                          scale: 1
-                        }}
-                        exit={{ opacity: 0, rotate: 180, scale: 0 }}
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.5 }}
                         className="w-full h-full flex items-center justify-center"
                       >
                         {shield.icon === 'user' ? (
-                          <motion.div
-                            animate={isCurrent ? {
-                              rotateY: [0, 360]
-                            } : {}}
-                            transition={{ duration: 3, repeat: Infinity }}
-                          >
-                            <User className="w-8 h-8 text-gray-600" />
-                          </motion.div>
+                          <User className={`w-7 h-7 ${isUnlocked ? shield.textColor : 'text-gray-400'}`} />
                         ) : (
-                          <motion.img 
-                            src={shield.icon} 
-                            alt={`${shield.name} Shield`}
-                            className="w-10 h-10 object-contain"
-                            animate={isCurrent ? {
-                              rotateY: [0, 360]
-                            } : {}}
-                            transition={{ duration: 3, repeat: Infinity }}
-                          />
+                          <img src={shield.icon} alt={shield.name} className="w-8 h-8 object-contain" />
                         )}
                       </motion.div>
                     ) : (
                       <motion.div
                         key="lock"
-                        initial={{ opacity: 0, scale: 0 }}
+                        initial={{ opacity: 0, scale: 0.5 }}
                         animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.5 }}
                         className="w-full h-full flex items-center justify-center"
                       >
-                        <motion.div
-                          animate={isNext ? {
-                            scale: [1, 1.2, 1],
-                            rotate: [0, 10, -10, 0]
-                          } : {
-                            y: [0, -2, 0]
-                          }}
-                          transition={{ 
-                            duration: isNext ? 1 : 2, 
-                            repeat: Infinity 
-                          }}
-                        >
-                          <Lock className="w-6 h-6 text-gray-500" />
-                        </motion.div>
+                        <Lock className="w-7 h-7 text-gray-400" />
                       </motion.div>
                     )}
                   </AnimatePresence>
-
-                  {/* Glow effect for current shield */}
-                  {isCurrent && isUnlocked && (
+                  
+                  {isNext && (
                     <motion.div
-                      className={`absolute inset-0 rounded-full ${shield.glowColor} blur-lg opacity-75`}
-                      animate={{
-                        scale: [1, 1.3, 1],
-                        opacity: [0.5, 0.9, 0.5]
-                      }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                  )}
-
-                  {/* Progress indicator for next shield */}
-                  {isNext && !isUnlocked && (
-                    <motion.div
-                      className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center"
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white"
                       animate={{
                         scale: [1, 1.2, 1],
                         boxShadow: [
-                          '0 0 0 rgba(59, 130, 246, 0)',
-                          '0 0 15px rgba(59, 130, 246, 0.8)',
-                          '0 0 0 rgba(59, 130, 246, 0)'
+                          "0 0 0px rgba(59, 130, 246, 0)",
+                          "0 0 10px rgba(59, 130, 246, 0.7)",
+                          "0 0 0px rgba(59, 130, 246, 0)"
                         ]
                       }}
                       transition={{ duration: 1.5, repeat: Infinity }}
                     >
-                      <Sparkles className="w-2.5 h-2.5 text-white" />
+                      <Sparkles className="w-4 h-4" />
                     </motion.div>
                   )}
                 </motion.div>
 
-                {/* Shield Info */}
-                <motion.div 
-                  className="text-center mt-1"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.12 + 0.2 }}
-                >
-                  <h4 className={`font-bold text-[11px] mb-0.5 ${
-                    isUnlocked ? shield.textColor : 'text-gray-500'
-                  }`}>
-                    {shield.name}
-                  </h4>
-                  <p className={`text-[11px] font-medium ${
-                    isUnlocked ? shield.textColor : 'text-gray-400'
-                  }`}>
-                    {shield.points === 0 ? '0' : shield.points.toLocaleString()}
-                  </p>
-                  
-                  {/* Badges */}
-                  <AnimatePresence>
-                    {isCurrent && isUnlocked && (
-                      <motion.div
-                        className="mt-0.5 inline-flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-1 py-0.5 rounded-full text-[10px] font-bold"
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        transition={{ type: "spring", stiffness: 300 }}
-                      >
-                        <Crown className="w-2 h-2" />
+                {/* Shield Label */}
+                <div className="mt-2">
+                  <p className={`font-bold text-sm ${isUnlocked ? shield.textColor : 'text-gray-500'}`}>{shield.name}</p>
+                  <p className="text-xs text-gray-500">{shield.points.toLocaleString()}</p>
+                </div>
+                
+                {isCurrent && (
+                  <div className="absolute -bottom-7">
+                    <div className="relative">
+                      <div className="px-2 py-1 bg-yellow-400 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                        <Crown className="w-3 h-3" />
                         CURRENT
-                      </motion.div>
-                    )}
-                    
-                    {isNext && !isUnlocked && (
-                      <motion.div
-                        className="mt-0.5 inline-flex items-center gap-1 bg-gradient-to-r from-blue-400 to-indigo-500 text-white px-1 py-0.5 rounded-full text-[10px] font-bold"
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        transition={{ type: "spring", stiffness: 300 }}
-                      >
-                        <Zap className="w-2 h-2" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {isNext && (
+                   <div className="absolute -bottom-7">
+                    <div className="relative">
+                      <div className="px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                        <Zap className="w-3 h-3" />
                         NEXT
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             );
           })}
         </div>
       </div>
 
-      {/* Progress Details */}
-      <div className="mt-2 space-y-1">
-        {currentPoints < 4000 && (
-          <>
-            <div className="flex justify-between items-center text-xs font-medium text-gray-700">
-              <span>Overall Progress</span>
-              <span>{Math.round(overallProgress)}%</span>
-            </div>
-            
-            {currentShieldIndex < 4 && (
-              <div className="text-center text-xs text-gray-600">
-                <span className="font-semibold">
-                  {shields[currentShieldIndex + 1].points - currentPoints}
-                </span>{' '}
-                points to unlock{' '}
-                <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
+      {/* Footer Text */}
+      <div className="text-center mt-8">
+        <p className="text-sm text-gray-600">
+          {currentShieldIndex < 4 
+            ? <>
+                <span className="font-bold text-purple-600">
+                  {(shields[currentShieldIndex + 1].points - currentPoints).toLocaleString()}
+                </span> 
+                {' '}points to unlock{' '}
+                <span className="font-bold" style={{color: shields[currentShieldIndex + 1].textColor.replace('text-', '')}}>
                   {shields[currentShieldIndex + 1].name} Shield
                 </span>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Completed Message */}
-        {currentPoints >= 4000 && (
-          <motion.div
-            className="text-center p-2 bg-gradient-to-r from-purple-100 via-pink-100 to-indigo-100 rounded-xl border border-purple-200"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: "spring", stiffness: 300 }}
-          >
-            <div className="flex justify-center items-center gap-1 mb-1">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              >
-                <Trophy className="w-4 h-4 text-purple-600" />
-              </motion.div>
-              <span className="text-base font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
-                All Shields Unlocked!
+              </>
+            : <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
+                You have unlocked all shields!
               </span>
-              <motion.div
-                animate={{ rotate: -360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              >
-                <Trophy className="w-4 h-4 text-purple-600" />
-              </motion.div>
-            </div>
-            <p className="text-purple-700 font-bold text-xs">
-              🎉 Congratulations! You've mastered all levels! 🎉
-            </p>
-          </motion.div>
-        )}
+          }
+        </p>
       </div>
     </div>
   );
