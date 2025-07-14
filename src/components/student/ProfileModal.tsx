@@ -12,9 +12,12 @@ interface ProfileModalProps {
 const ProfileModal: React.FC<ProfileModalProps> = ({ studentId }) => {
   const [studentData, setStudentData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchStudentData = async () => {
+      if (!isModalOpen) return;
+      setLoading(true);
       try {
         const studentRef = doc(db, 'students', studentId);
         const studentSnap = await getDoc(studentRef);
@@ -31,10 +34,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ studentId }) => {
     if (studentId) {
       fetchStudentData();
     }
-  }, [studentId]);
+  }, [studentId, isModalOpen]);
 
   return (
-    <Dialog>
+    <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon">
           <User className="h-6 w-6" />
