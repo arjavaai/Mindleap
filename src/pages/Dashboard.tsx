@@ -412,7 +412,8 @@ const Dashboard = () => {
       <StudentHeader 
         showBackButton={false} 
         totalPoints={studentData.totalPoints} 
-        currentStreak={studentData.streakCount} 
+        currentStreak={studentData.streakCount}
+        studentId={user?.uid}
       />
 
       {/* Main Content */}
