@@ -1,15 +1,11 @@
 import React, { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '../lib/firebase';
-import { ProfileModal } from './student';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const [user] = useAuthState(auth);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -171,16 +167,12 @@ const Navbar = () => {
             ))}
             
             {/* Login Button */}
-            {user ? (
-              <ProfileModal studentId={user.uid} />
-            ) : (
-              <button
-                onClick={() => navigate('/auth')}
-                className="bg-vibrant-orange text-white px-6 py-2 rounded-full font-medium font-poppins transition-all duration-300 hover:bg-deep-blue hover:scale-105 shadow-md hover:shadow-lg"
-              >
-                Login
-              </button>
-            )}
+            <button
+              onClick={() => navigate('/auth')}
+              className="bg-vibrant-orange text-white px-6 py-2 rounded-full font-medium font-poppins transition-all duration-300 hover:bg-deep-blue hover:scale-105 shadow-md hover:shadow-lg"
+            >
+              Login
+            </button>
           </div>
 
           {/* Mobile menu button */}
@@ -210,19 +202,15 @@ const Navbar = () => {
             
             {/* Mobile Login Button */}
             <div className="pt-4 pb-2">
-              {user ? (
-                <ProfileModal studentId={user.uid} />
-              ) : (
-                <button
-                  onClick={() => {
-                    navigate('/auth');
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full bg-vibrant-orange text-white px-6 py-3 rounded-full font-medium font-poppins transition-all duration-300 hover:bg-deep-blue shadow-md hover:shadow-lg"
-                >
-                  Login
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  navigate('/auth');
+                  setIsMenuOpen(false);
+                }}
+                className="w-full bg-vibrant-orange text-white px-6 py-3 rounded-full font-medium font-poppins transition-all duration-300 hover:bg-deep-blue shadow-md hover:shadow-lg"
+              >
+                Login
+              </button>
             </div>
           </div>
         </div>

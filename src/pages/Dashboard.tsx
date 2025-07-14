@@ -32,6 +32,7 @@ import ShieldProgressBar from '../components/ui/ShieldProgressBar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 // New unified header
 import StudentHeader from '../components/StudentHeader';
+import { ProfileModal } from '../components/student';
 
 interface StudentData {
   streakCount: number;
@@ -461,15 +462,18 @@ const Dashboard = () => {
                   <h3 className="text-xl font-bold mb-2">🔥 Daily Streak</h3>
                   <p className="text-purple-100">Challenge your mind today</p>
                 </div>
-                <motion.div
-                  animate={{
-                    scale: [1, 1.1, 1],
-                    rotate: [0, 10, -10, 0]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Flame className="w-12 h-12" />
-                </motion.div>
+                <div className="flex items-center gap-4">
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.1, 1],
+                      rotate: [0, 10, -10, 0]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Flame className="w-12 h-12" />
+                  </motion.div>
+                  {user && <ProfileModal studentId={user.uid} />}
+                </div>
               </div>
               <motion.div
                 className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
@@ -501,14 +505,17 @@ const Dashboard = () => {
                   <h3 className="text-xl font-bold mb-2">📚 Quizzes</h3>
                   <p className="text-green-100">Test your knowledge</p>
                 </div>
-                <motion.div
-                  animate={{ 
-                    scale: [1, 1.1, 1]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <BookOpen className="w-12 h-12" />
-                </motion.div>
+                <div className="flex items-center gap-4">
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <BookOpen className="w-12 h-12" />
+                  </motion.div>
+                  {user && <ProfileModal studentId={user.uid} />}
+                </div>
               </div>
               <motion.div
                 className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
@@ -540,14 +547,17 @@ const Dashboard = () => {
                   <h3 className="text-xl font-bold mb-2">🎥 Live Webinars</h3>
                   <p className="text-blue-100">Join interactive sessions</p>
                 </div>
-                <motion.div
-                  animate={{ 
-                    scale: [1, 1.1, 1]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Play className="w-12 h-12" />
-                </motion.div>
+                <div className="flex items-center gap-4">
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Play className="w-12 h-12" />
+                  </motion.div>
+                  {user && <ProfileModal studentId={user.uid} />}
+                </div>
               </div>
               <motion.div
                 className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
@@ -579,15 +589,18 @@ const Dashboard = () => {
                   <h3 className="text-xl font-bold mb-2">🛠️ Workshops</h3>
                   <p className="text-orange-100">Hands-on learning</p>
                 </div>
-                <motion.div
-                  animate={{ 
-                    scale: [1, 1.1, 1],
-                    rotate: [0, 10, -10, 0]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Timer className="w-12 h-12" />
-                </motion.div>
+                <div className="flex items-center gap-4">
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.1, 1],
+                      rotate: [0, 10, -10, 0]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Timer className="w-12 h-12" />
+                  </motion.div>
+                  {user && <ProfileModal studentId={user.uid} />}
+                </div>
               </div>
               <motion.div
                 className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
@@ -619,15 +632,18 @@ const Dashboard = () => {
                   <h3 className="text-xl font-bold mb-2">🏆 Leaderboard</h3>
                   <p className="text-yellow-100">See top performers</p>
                 </div>
-                <motion.div
-                  animate={{
-                    scale: [1, 1.1, 1],
-                    rotate: [0, 5, -5, 0]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Trophy className="w-12 h-12" />
-                </motion.div>
+                <div className="flex items-center gap-4">
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.1, 1],
+                      rotate: [0, 5, -5, 0]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Trophy className="w-12 h-12" />
+                  </motion.div>
+                  {user && <ProfileModal studentId={user.uid} />}
+                </div>
               </div>
               <motion.div
                 className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
@@ -659,14 +675,17 @@ const Dashboard = () => {
                   <h3 className="text-xl font-bold mb-2">📊 Report</h3>
                   <p className="text-teal-100">Track your progress</p>
                 </div>
-                <motion.div
-                  animate={{
-                    scale: [1, 1.1, 1]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <BarChart3 className="w-12 h-12" />
-                </motion.div>
+                <div className="flex items-center gap-4">
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <BarChart3 className="w-12 h-12" />
+                  </motion.div>
+                  {user && <ProfileModal studentId={user.uid} />}
+                </div>
               </div>
               <motion.div
                 className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"

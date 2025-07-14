@@ -3,7 +3,6 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Flame, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { ProfileModal } from './student';
 
 interface StudentHeaderProps {
   /**
@@ -29,10 +28,6 @@ interface StudentHeaderProps {
    * Student's current daily-streak – if omitted, the points / streak cluster will be hidden.
    */
   currentStreak?: number;
-  /**
-   * The student's ID.
-   */
-  studentId?: string;
 }
 
 const StudentHeader: React.FC<StudentHeaderProps> = ({
@@ -41,7 +36,6 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({
   backLabel = 'Back to Dashboard',
   totalPoints,
   currentStreak,
-  studentId,
 }) => {
   const navigate = useNavigate();
 
@@ -93,36 +87,33 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({
           </div>
 
           {/* Right section – Stats (only if both values are provided) */}
-          <div className="flex items-center gap-4">
-            {totalPoints !== undefined && currentStreak !== undefined && (
-              <motion.div
-                className="flex items-center gap-4"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                <div className="flex items-center gap-2 bg-gradient-to-r from-yellow-100 to-orange-100 px-4 py-2 rounded-full">
-                  <Trophy className="w-5 h-5 text-yellow-600" />
-                  <span className="font-bold text-yellow-800">{totalPoints} Points</span>
-                </div>
+          {totalPoints !== undefined && currentStreak !== undefined && (
+            <motion.div
+              className="flex items-center gap-4"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <div className="flex items-center gap-2 bg-gradient-to-r from-yellow-100 to-orange-100 px-4 py-2 rounded-full">
+                <Trophy className="w-5 h-5 text-yellow-600" />
+                <span className="font-bold text-yellow-800">{totalPoints} Points</span>
+              </div>
 
-                <div
-                  className={`flex items-center gap-2 bg-gradient-to-r ${getStreakColor(
-                    currentStreak
-                  )} px-4 py-2 rounded-full text-white`}
+              <div
+                className={`flex items-center gap-2 bg-gradient-to-r ${getStreakColor(
+                  currentStreak
+                )} px-4 py-2 rounded-full text-white`}
+              >
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <motion.div
-                    animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <Flame className="w-5 h-5" />
-                  </motion.div>
-                  <span className="font-bold">{currentStreak} Day Streak</span>
-                </div>
-              </motion.div>
-            )}
-            {studentId && <ProfileModal studentId={studentId} />}
-          </div>
+                  <Flame className="w-5 h-5" />
+                </motion.div>
+                <span className="font-bold">{currentStreak} Day Streak</span>
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
     </motion.header>
