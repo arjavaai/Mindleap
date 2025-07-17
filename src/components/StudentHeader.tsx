@@ -133,27 +133,8 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({
               </motion.div>
             )}
 
-            {/* Profile - use tooltip if studentData is available, otherwise use modal */}
-            {studentData.studentId ? (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <motion.button
-                      className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white cursor-pointer border-2 border-transparent hover:border-purple-300 transition-all duration-200"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <User className="w-5 h-5" />
-                    </motion.button>
-                  </TooltipTrigger>
-                  <TooltipContent sideOffset={5} align="end" className="bg-white p-0 rounded-xl shadow-xl border border-gray-100 w-72 overflow-hidden z-50">
-                    <ProfileDetails studentData={studentData} />
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ) : (
-              studentId && <ProfileModal studentId={studentId} />
-            )}
+            {/* Profile - click to open modal */}
+            <ProfileModal studentData={studentData} loading={loading} />
           </div>
         </div>
       </div>
@@ -162,7 +143,7 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({
 };
 
 // Inline component for profile details display
-const ProfileDetails: React.FC<{ studentData: any }> = ({ studentData }) => (
+const ProfileDetails: React.FC<{ studentData: any; loading?: boolean }> = ({ studentData, loading }) => (
   <div className="overflow-hidden">
     {/* Header */}
     <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-3 text-white">
@@ -170,35 +151,91 @@ const ProfileDetails: React.FC<{ studentData: any }> = ({ studentData }) => (
     </div>
     
     {/* Profile content */}
-<div className="p-4 space-y-2.5 max-h-80 overflow-y-auto">
-      <div className="flex justify-between items-center border-b pb-1.5">
-        <span className="text-gray-500 text-sm">Student ID:</span>
-        <span className="font-medium">{studentData.studentId || 'N/A'}</span>
-      </div>
-      <div className="flex justify-between items-center border-b pb-1.5">
-        <span className="text-gray-500 text-sm">Name:</span>
-        <span className="font-medium">{studentData.name || 'N/A'}</span>
-      </div>
-      <div className="flex justify-between items-center border-b pb-1.5">
-        <span className="text-gray-500 text-sm">Email:</span>
-        <span className="font-medium">{studentData.email || 'N/A'}</span>
-      </div>
-      <div className="flex justify-between items-center border-b pb-1.5">
-        <span className="text-gray-500 text-sm">Phone:</span>
-        <span className="font-medium">{studentData.phone || 'N/A'}</span>
-      </div>
-      <div className="flex justify-between items-center border-b pb-1.5">
-        <span className="text-gray-500 text-sm">School:</span>
-        <span className="font-medium">{studentData.schoolName || 'N/A'}</span>
-      </div>
-      <div className="flex justify-between items-center border-b pb-1.5">
-        <span className="text-gray-500 text-sm">District:</span>
-        <span className="font-medium">{studentData.districtName || 'N/A'}</span>
-      </div>
-      <div className="flex justify-between items-center">
-        <span className="text-gray-500 text-sm">State:</span>
-        <span className="font-medium">{studentData.state || 'N/A'}</span>
-      </div>
+    <div className="p-4 space-y-2.5 max-h-80 overflow-y-auto">
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+          <span className="ml-2 text-gray-600">Loading profile...</span>
+        </div>
+      ) : (
+        <>
+          <div className="flex justify-between items-center border-b pb-1.5">
+            <span className="text-gray-500 text-sm">Student ID:</span>
+            <span className="font-medium text-purple-600">
+              {studentData.studentId || studentData.id || 'Not Available'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center border-b pb-1.5">
+            <span className="text-gray-500 text-sm">Name:</span>
+            <span className="font-medium">
+              {studentData.name || 'Not Available'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center border-b pb-1.5">
+            <span className="text-gray-500 text-sm">Email:</span>
+            <span className="font-medium text-sm">
+              {studentData.email || 'Not Available'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center border-b pb-1.5">
+            <span className="text-gray-500 text-sm">Phone:</span>
+            <span className="font-medium">
+              {studentData.phone || studentData.whatsappNumber || 'Not Available'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center border-b pb-1.5">
+            <span className="text-gray-500 text-sm">Grade:</span>
+            <span className="font-medium">
+              {studentData.grade || studentData.class || 'Not Available'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center border-b pb-1.5">
+            <span className="text-gray-500 text-sm">School:</span>
+            <span className="font-medium text-sm">
+              {studentData.schoolName || 'Not Available'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center border-b pb-1.5">
+            <span className="text-gray-500 text-sm">District:</span>
+            <span className="font-medium">
+              {studentData.districtName || 'Not Available'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center border-b pb-1.5">
+            <span className="text-gray-500 text-sm">State:</span>
+            <span className="font-medium">
+              {studentData.state || 'Not Available'}
+            </span>
+          </div>
+          
+          {/* Additional Stats */}
+          <div className="mt-4 pt-2 border-t">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-500 text-sm">Total Points:</span>
+              <span className="font-bold text-yellow-600">
+                {studentData.totalPoints || 0}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500 text-sm">Current Streak:</span>
+              <span className="font-bold text-orange-600">
+                {studentData.currentStreak || 0} days
+              </span>
+            </div>
+          </div>
+
+          {/* Debug Info - Remove this in production */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 pt-2 border-t bg-gray-50 p-2 rounded text-xs">
+              <div className="text-gray-600 mb-1">Debug Info:</div>
+              <div className="text-gray-500">
+                User ID: {studentData.id || 'N/A'}<br/>
+                Data Keys: {Object.keys(studentData).join(', ')}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   </div>
 );

@@ -84,7 +84,7 @@ const fetchStudentData = async () => {
 
     try {
       setStudentData((prev) => ({ ...prev, loading: true, error: null }));
-      console.log('Fetching student data for user:', user.uid);
+      console.log('Fetching student data for user:', user.uid, 'Email:', user.email);
 
       // Get the stored totals from dailyStreaks collection (same logic as DailyStreak.tsx)
       const userStreakDoc = await getDoc(doc(db, 'dailyStreaks', user.uid));
@@ -113,48 +113,82 @@ const fetchStudentData = async () => {
         console.log('useStudentData - Final values - Streak:', currentStreak, 'Points:', totalPoints);
       }
 
-      // Get detailed student information - this is similar to how admin panel fetches data
-      const studentDoc = await getDoc(doc(db, 'students', user.uid));
-      let studentProfile = {};
+      // Get detailed student information - try multiple approaches
+      let studentProfile = {
+        id: user.uid,
+        email: user.email || '',
+        name: user.displayName || '',
+      };
 
+      // First try: Get by user UID (document ID)
+      const studentDoc = await getDoc(doc(db, 'students', user.uid));
+      
       if (studentDoc.exists()) {
         const studentData = studentDoc.data();
-        console.log('useStudentData - Student Profile Data:', studentData);
-
-        // Extract all possible fields to ensure we have complete data
+        console.log('useStudentData - Found student by UID:', studentData);
+        
         studentProfile = {
-          // Basic information
-          id: studentDoc.id,
-          studentId: studentData.studentId || '',
-          name: studentData.name || '',
-          email: studentData.email || '',
-          phone: studentData.phone || '',
-          grade: studentData.grade || studentData.class || '',
-          section: studentData.section || '',
-          schoolCode: studentData.schoolCode || '',
-          districtCode: studentData.districtCode || '',
-          
-          // Additional data for completeness
-          address: studentData.address || '',
-          state: studentData.state || '',
-          gender: studentData.gender || '',
-          age: studentData.age || '',
-          parentDetails: studentData.parentDetails || '',
-          whatsappNumber: studentData.whatsappNumber || '',
-          password: '', // We don't expose password in UI
-          
-          // Structured parent info
-          parentInfo: {
-            fatherName: studentData.parentInfo?.fatherName || studentData.parentDetails || '',
-            motherName: studentData.parentInfo?.motherName || '',
-            guardianPhone: studentData.parentInfo?.guardianPhone || studentData.whatsappNumber || '',
-            guardianEmail: studentData.parentInfo?.guardianEmail || ''
-          }
+          ...studentProfile,
+          ...extractStudentProfile(studentData, studentDoc.id)
         };
+      } else {
+        console.log('useStudentData - No student found by UID, trying other methods...');
+        
+        // Second try: Search by email if available
+        if (user.email) {
+          try {
+            const { query, where, getDocs, collection } = await import('firebase/firestore');
+            const studentsQuery = query(
+              collection(db, 'students'),
+              where('email', '==', user.email)
+            );
+            const studentsSnapshot = await getDocs(studentsQuery);
+            
+            if (!studentsSnapshot.empty) {
+              const studentDoc = studentsSnapshot.docs[0];
+              const studentData = studentDoc.data();
+              console.log('useStudentData - Found student by email:', studentData);
+              
+              studentProfile = {
+                ...studentProfile,
+                ...extractStudentProfile(studentData, studentDoc.id)
+              };
+            } else {
+              // Third try: Extract student ID from email and search
+              if (user.email.includes('@mindleap.edu')) {
+                const studentIdFromEmail = user.email.split('@')[0].toUpperCase();
+                console.log('useStudentData - Trying student ID from email:', studentIdFromEmail);
+                
+                const studentIdQuery = query(
+                  collection(db, 'students'),
+                  where('studentId', '==', studentIdFromEmail)
+                );
+                const studentIdSnapshot = await getDocs(studentIdQuery);
+                
+                if (!studentIdSnapshot.empty) {
+                  const studentDoc = studentIdSnapshot.docs[0];
+                  const studentData = studentDoc.data();
+                  console.log('useStudentData - Found student by studentId:', studentData);
+                  
+                  studentProfile = {
+                    ...studentProfile,
+                    ...extractStudentProfile(studentData, studentDoc.id)
+                  };
+                }
+              }
+            }
+          } catch (searchError) {
+            console.error('Error searching for student:', searchError);
+          }
+        }
+      }
 
-        // Enrich student profile with additional data from school
+      // Enrich student profile with additional data from school
+      if (studentProfile.schoolCode) {
         studentProfile = await enrichStudentProfile(studentProfile);
       }
+
+      console.log('useStudentData - Final student profile:', studentProfile);
 
       setStudentData({
         totalPoints,
@@ -171,6 +205,38 @@ const fetchStudentData = async () => {
         error: error instanceof Error ? error.message : 'Failed to fetch student data'
       }));
     }
+  };
+
+  // Helper function to extract student profile data
+  const extractStudentProfile = (studentData: any, docId: string) => {
+    return {
+      // Basic information
+      id: docId,
+      studentId: studentData.studentId || '',
+      name: studentData.name || '',
+      email: studentData.email || '',
+      phone: studentData.phone || '',
+      grade: studentData.grade || studentData.class || '',
+      section: studentData.section || '',
+      schoolCode: studentData.schoolCode || '',
+      districtCode: studentData.districtCode || '',
+      
+      // Additional data for completeness
+      address: studentData.address || '',
+      state: studentData.state || '',
+      gender: studentData.gender || '',
+      age: studentData.age || '',
+      parentDetails: studentData.parentDetails || '',
+      whatsappNumber: studentData.whatsappNumber || '',
+      
+      // Structured parent info
+      parentInfo: {
+        fatherName: studentData.parentInfo?.fatherName || studentData.parentDetails || '',
+        motherName: studentData.parentInfo?.motherName || '',
+        guardianPhone: studentData.parentInfo?.guardianPhone || studentData.whatsappNumber || '',
+        guardianEmail: studentData.parentInfo?.guardianEmail || ''
+      }
+    };
   };
 
   useEffect(() => {

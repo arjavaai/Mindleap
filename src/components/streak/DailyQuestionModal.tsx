@@ -446,12 +446,12 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                   transition={{ duration: 0.8, delay: 0.5 }}
                   className="mb-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-xl border border-indigo-200 shadow-md"
                 >
-                  <div className="p-3 sm:p-4">
+                  <div className="p-3 sm:p-4 overflow-hidden">
                     <motion.div
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ delay: 0.7 }}
-                      className="flex items-start gap-4"
+                      className="flex items-start gap-4 w-full"
                     >
                       <motion.div
                         className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center"
@@ -463,7 +463,7 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                       >
                         <Lightbulb className="w-6 h-6 text-white" />
                       </motion.div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <motion.h3 
                           className="text-base sm:text-lg font-bold text-indigo-800 mb-2 flex items-center gap-2"
                           initial={{ opacity: 0, x: -20 }}
@@ -479,7 +479,14 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                           </motion.div>
                         </motion.h3>
                         <motion.div 
-                          className="text-indigo-700 text-sm sm:text-base leading-relaxed"
+                          className="text-indigo-700 text-sm sm:text-base leading-relaxed prose prose-sm max-w-none"
+                          style={{ 
+                            wordWrap: 'break-word', 
+                            overflowWrap: 'break-word', 
+                            hyphens: 'auto',
+                            width: '100%',
+                            maxWidth: '100%'
+                          }}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.9 }}

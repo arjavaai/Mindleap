@@ -469,13 +469,18 @@ const DailyStreak = () => {
                     </div>
                   </div>
 
-                  {todayRecord.explanation && <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-xl text-left">
+                  {todayRecord.explanation && <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-xl text-left overflow-hidden">
                       <h5 className="font-semibold text-purple-800 mb-2 flex items-center gap-2">
                         <Brain className="w-4 h-4" />
                         Explanation:
                       </h5>
-                      <p 
-                        className="text-purple-700 text-sm" 
+                      <div 
+                        className="text-purple-700 text-sm leading-relaxed break-words overflow-wrap-anywhere"
+                        style={{
+                          wordBreak: 'break-word',
+                          overflowWrap: 'anywhere',
+                          hyphens: 'auto'
+                        }}
                         dangerouslySetInnerHTML={{ __html: todayRecord.explanation }}
                       />
                     </div>}
