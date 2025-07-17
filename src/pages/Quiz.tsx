@@ -38,6 +38,7 @@ import {
   limit,
   addDoc
 } from 'firebase/firestore';
+import StudentHeader from '../components/StudentHeader';
 
 interface Quiz {
   id: string;
@@ -111,6 +112,7 @@ const Quiz = () => {
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState<any>(null);
   const [quizAttempts, setQuizAttempts] = useState<Record<string, boolean>>({});
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   useEffect(() => {
     // Fetch quizzes immediately when component mounts
@@ -573,6 +575,7 @@ const Quiz = () => {
     setAnswers([]);
     setScore(0);
     setSelectedAnswer(null);
+    setCurrentQuestionIndex(0);
   };
 
   const formatTime = (seconds: number) => {
@@ -662,30 +665,7 @@ const Quiz = () => {
   if (showResults && currentQuiz) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100">
-        {/* Header */}
-        <header className="bg-white/80 backdrop-blur-lg border-b border-white/20 shadow-lg">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <img 
-                  src="/lovable-uploads/7f6ab2a8-9863-4f75-ae5a-f2b087639caa.png" 
-                  alt="MindLeap Logo" 
-                  className="h-12 cursor-pointer hover:scale-105 transition-transform"
-                  onClick={() => navigate('/')}
-                />
-                <motion.button
-                  onClick={() => navigate('/quiz')}
-                  className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
-                  whileHover={{ x: -5 }}
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                  <span className="font-medium">Back to Quizzes</span>
-                </motion.button>
-              </div>
-              <h1 className="text-xl font-bold text-gray-800">{currentQuiz.title} - Results</h1>
-            </div>
-          </div>
-        </header>
+        <StudentHeader showBackButton={true} backTo="/quiz" backLabel="Back to Quizzes" />
 
         {/* Results */}
         <div className="container mx-auto px-4 py-8">
@@ -791,15 +771,6 @@ const Quiz = () => {
               >
                 <Eye className="w-5 h-5" />
                 {showDetailedResults ? 'Hide' : 'View'} Detailed Results
-              </motion.button>
-              <motion.button
-                onClick={() => navigate('/quiz')}
-                className="px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <ArrowRight className="w-5 h-5" />
-                More Quizzes
               </motion.button>
             </motion.div>
 
@@ -968,7 +939,7 @@ const Quiz = () => {
   }
 
   if (currentQuiz && quizStarted && !showResults) {
-    const currentQuestion = currentQuiz.questions[answers.length];
+    const currentQuestion = currentQuiz.questions[currentQuestionIndex];
     
     // If no current question (quiz completed), show results
     if (!currentQuestion) {
@@ -977,39 +948,19 @@ const Quiz = () => {
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100">
-        {/* Header */}
-        <header className="bg-white/80 backdrop-blur-lg border-b border-white/20 shadow-lg">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <img 
-                  src="/lovable-uploads/7f6ab2a8-9863-4f75-ae5a-f2b087639caa.png" 
-                  alt="MindLeap Logo" 
-                  className="h-12 cursor-pointer hover:scale-105 transition-transform"
-                  onClick={() => navigate('/')}
-                />
-                <motion.button
-                  onClick={() => {
-                    resetQuizState();
-                    navigate('/quiz');
-                  }}
-                  className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
-                  whileHover={{ x: -5 }}
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                  <span className="font-medium">Back to Quizzes</span>
-                </motion.button>
-              </div>
-              
-              <div className="flex items-center gap-6">
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${getTimeColor()} text-white font-semibold`}>
-                  <Clock className="w-5 h-5" />
-                  <span>{formatTime(timeLeft)}</span>
-                </div>
+        <StudentHeader showBackButton={true} backTo="/quiz" backLabel="Back to Quizzes" />
+        
+        {/* Timer Bar */}
+        <div className="bg-white/80 backdrop-blur-lg border-b border-white/20 shadow-sm">
+          <div className="container mx-auto px-4 py-2">
+            <div className="flex justify-end">
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${getTimeColor()} text-white font-semibold`}>
+                <Clock className="w-5 h-5" />
+                <span>{formatTime(timeLeft)}</span>
               </div>
             </div>
           </div>
-        </header>
+        </div>
 
         {/* Quiz Content */}
         <div className="container mx-auto px-4 py-8">
@@ -1137,31 +1088,7 @@ const Quiz = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-lg border-b border-white/20 shadow-lg">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img 
-                src="/lovable-uploads/7f6ab2a8-9863-4f75-ae5a-f2b087639caa.png" 
-                alt="MindLeap Logo" 
-                className="h-12 cursor-pointer hover:scale-105 transition-transform"
-                onClick={() => navigate('/')}
-              />
-              <motion.button
-                onClick={() => navigate('/dashboard')}
-                className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
-                whileHover={{ x: -5 }}
-              >
-                <ArrowLeft className="w-5 h-5" />
-                <span className="font-medium">Back to Dashboard</span>
-              </motion.button>
-            </div>
-            
-            {/* Profile Icon removed as per request */}
-          </div>
-        </div>
-      </header>
+      <StudentHeader />
 
       {/* Quiz Selection */}
       <div className="container mx-auto px-4 py-8">

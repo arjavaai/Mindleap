@@ -32,6 +32,7 @@ import ShieldProgressBar from '../components/ui/ShieldProgressBar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 // New unified header
 import StudentHeader from '../components/StudentHeader';
+import { useStudentData } from '../hooks/useStudentData';
 
 interface StudentData {
   streakCount: number;
@@ -49,6 +50,7 @@ interface DailyStreakRecord {
 
 const Dashboard = () => {
   const [user] = useAuthState(auth);
+  const { totalPoints, currentStreak, loading: studentDataLoading } = useStudentData();
   const [studentData, setStudentData] = useState<StudentData>({
     streakCount: 0,
     totalPoints: 0,
@@ -95,55 +97,21 @@ const Dashboard = () => {
           
           // Fetch daily streak records to calculate current streak and total points
           const streakRecords = await fetchStreakRecords();
-        
-        // Also get the stored totals from dailyStreaks collection for accuracy
-        const userStreakDoc = await getDoc(doc(db, 'dailyStreaks', user.uid));
-        let currentStreak = 0;
-        let totalPoints = 0;
-        
-        if (userStreakDoc.exists()) {
-          const streakData = userStreakDoc.data();
-          console.log('Dashboard - Daily Streak Data:', streakData);
-          
-          // Use stored values first
-          currentStreak = streakData.currentStreak || 0;
-          totalPoints = streakData.totalPoints || 0;
-          
-          // Also calculate from records like Daily Streak page does
-          const records = streakData.records || {};
-          const calculatedTotalPoints = Object.values(records).reduce((sum: number, record: any) => {
-            return sum + (typeof record?.points === 'number' ? record.points : 0);
-          }, 0);
-          
-          // Use calculated points if available and different from stored
-          if (Number(calculatedTotalPoints) > 0) {
-            totalPoints = Number(calculatedTotalPoints);
-          }
-          
-          console.log('Dashboard - Stored values - Streak:', currentStreak, 'Points:', totalPoints);
-          console.log('Dashboard - Calculated total points:', calculatedTotalPoints);
-        } else {
-          // Fallback to calculated values if no stored data
-          console.log('Dashboard - No stored data, calculating from records:', streakRecords);
-          currentStreak = calculateCurrentStreak(streakRecords);
-          totalPoints = streakRecords.reduce((total, record) => total + (record.points || 0), 0);
-          console.log('Dashboard - Calculated values - Streak:', currentStreak, 'Points:', totalPoints);
-        }
-        
           const questionsAnswered = streakRecords.length;
           
+          // Use the unified student data from useStudentData hook
           setStudentData({
             streakCount: currentStreak,
             totalPoints: totalPoints,
-          badge: getBadgeFromPoints(totalPoints),
+            badge: getBadgeFromPoints(totalPoints),
             name: data.name || data.studentId || user.email?.split('@')[0] || 'Student',
             questionsAnswered: questionsAnswered
           });
         } else {
           setStudentData({
-            streakCount: 0,
-            totalPoints: 0,
-          badge: null,
+            streakCount: currentStreak,
+            totalPoints: totalPoints,
+            badge: getBadgeFromPoints(totalPoints),
             name: user.email?.split('@')[0] || 'Student',
             questionsAnswered: 0
           });
@@ -151,9 +119,9 @@ const Dashboard = () => {
       } catch (error) {
         console.error('Error fetching student data:', error);
         setStudentData({
-          streakCount: 0,
-          totalPoints: 0,
-        badge: null,
+          streakCount: currentStreak,
+          totalPoints: totalPoints,
+          badge: getBadgeFromPoints(totalPoints),
           name: user.email?.split('@')[0] || 'Student',
           questionsAnswered: 0
         });
@@ -164,7 +132,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchStudentData();
-  }, [user]);
+  }, [user, totalPoints, currentStreak]);
 
 
 
@@ -347,7 +315,7 @@ const Dashboard = () => {
     duration: 4 + Math.random() * 2
   }));
 
-  if (loading) {
+  if (loading || studentDataLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <motion.div
@@ -411,8 +379,6 @@ const Dashboard = () => {
       {/* Sticky Header */}
       <StudentHeader 
         showBackButton={false} 
-        totalPoints={studentData.totalPoints} 
-        currentStreak={studentData.streakCount} 
       />
 
       {/* Main Content */}
@@ -427,15 +393,13 @@ const Dashboard = () => {
           variants={itemVariants}
           className="mb-12"
         >
-          <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 border border-white/50 shadow-lg">
-            {/* Shield Progress Bar */}
-            <motion.div
-              variants={itemVariants}
-              className="mb-6"
-            >
-              <ShieldProgressBar currentPoints={studentData.totalPoints} />
-            </motion.div>
-          </div>
+          {/* Shield Progress Bar */}
+          <motion.div
+            variants={itemVariants}
+            className="mb-6"
+          >
+            <ShieldProgressBar currentPoints={totalPoints} />
+          </motion.div>
         </motion.div>
 
         {/* Quick Action Cards */}
@@ -681,10 +645,7 @@ const Dashboard = () => {
           </motion.div>
         </motion.div>
 
-        {/* Shield Progression Card */}
-        <motion.div variants={itemVariants} className="mt-8">
-          <ShieldProgressBar currentPoints={studentData.totalPoints} />
-        </motion.div>
+
 
       </motion.div>
     </div>

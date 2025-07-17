@@ -1,9 +1,9 @@
 
-# MindLeap - Educational Platform
+# MindLeap - Comprehensive Educational Platform
 
 ## 🎯 Overview
 
-MindLeap is a comprehensive educational platform designed to enhance student learning through interactive quizzes, daily streak challenges, and gamified learning experiences. Built with React, TypeScript, and Firebase, it provides a complete ecosystem for students, administrators, and schools.
+MindLeap is a modern, interactive educational platform designed to revolutionize learning through engaging quizzes, daily challenges, and gamified experiences. Built with React, TypeScript, and Firebase, it provides a complete ecosystem with three main components: **Student Dashboard**, **Admin Dashboard**, and **Landing Page**.
 
 ## ✨ Features
 

@@ -1,8 +1,10 @@
 // StudentHeader.tsx
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Flame, ArrowLeft } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/tooltip';
+import { Trophy, Flame, ArrowLeft, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useStudentData } from '../hooks/useStudentData';
 
 interface StudentHeaderProps {
   /**
@@ -20,24 +22,17 @@ interface StudentHeaderProps {
    * Defaults to "Back to Dashboard".
    */
   backLabel?: string;
-  /**
-   * Student's total points – if omitted, the points / streak cluster will be hidden.
-   */
-  totalPoints?: number;
-  /**
-   * Student's current daily-streak – if omitted, the points / streak cluster will be hidden.
-   */
-  currentStreak?: number;
 }
 
 const StudentHeader: React.FC<StudentHeaderProps> = ({
   showBackButton = true,
   backTo = '/dashboard',
   backLabel = 'Back to Dashboard',
-  totalPoints,
-  currentStreak,
 }) => {
   const navigate = useNavigate();
+  const studentData = useStudentData();
+  const { totalPoints, currentStreak, loading } = studentData;
+  // No longer need modal state as we're using tooltip
 
   // Replicates the gradient logic from the Daily Streak page
   const getStreakColor = (streak: number | undefined) => {
@@ -86,38 +81,101 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({
             )}
           </div>
 
-          {/* Right section – Stats (only if both values are provided) */}
-          {totalPoints !== undefined && currentStreak !== undefined && (
-            <motion.div
-              className="flex items-center gap-4"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              <div className="flex items-center gap-2 bg-gradient-to-r from-yellow-100 to-orange-100 px-4 py-2 rounded-full">
-                <Trophy className="w-5 h-5 text-yellow-600" />
-                <span className="font-bold text-yellow-800">{totalPoints} Points</span>
-              </div>
+          {/* Right section – Stats and Profile (always show, with loading state) */}
+          <motion.div
+            className="flex items-center gap-4"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="flex items-center gap-2 bg-gradient-to-r from-yellow-100 to-orange-100 px-4 py-2 rounded-full">
+              <Trophy className="w-5 h-5 text-yellow-600" />
+              <span className="font-bold text-yellow-800">
+                {loading ? '...' : `${totalPoints} Points`}
+              </span>
+            </div>
 
-              <div
-                className={`flex items-center gap-2 bg-gradient-to-r ${getStreakColor(
-                  currentStreak
-                )} px-4 py-2 rounded-full text-white`}
+            <div
+              className={`flex items-center gap-2 bg-gradient-to-r ${getStreakColor(
+                currentStreak
+              )} px-4 py-2 rounded-full text-white`}
+            >
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                transition={{ duration: 2, repeat: Infinity }}
               >
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Flame className="w-5 h-5" />
-                </motion.div>
-                <span className="font-bold">{currentStreak} Day Streak</span>
-              </div>
-            </motion.div>
-          )}
+                <Flame className="w-5 h-5" />
+              </motion.div>
+              <span className="font-bold">
+                {loading ? '...' : `${currentStreak} Day Streak`}
+              </span>
+            </div>
+
+{/* Profile Icon with Tooltip */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <motion.button
+                    className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white cursor-pointer border-2 border-transparent hover:border-purple-300 transition-all duration-200"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <User className="w-5 h-5" />
+                  </motion.button>
+                </TooltipTrigger>
+<TooltipContent sideOffset={5} align="end" className="bg-white p-0 rounded-xl shadow-xl border border-gray-100 w-72 overflow-hidden z-50">
+                  <ProfileDetails studentData={studentData} />
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </motion.div>
+
+          {/* Using tooltip instead of modal now */}
         </div>
       </div>
     </motion.header>
   );
 };
 
+// Inline component for profile details display
+const ProfileDetails: React.FC<{ studentData: any }> = ({ studentData }) => (
+  <div className="overflow-hidden">
+    {/* Header */}
+    <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-3 text-white">
+      <h3 className="font-bold text-lg">Student Profile</h3>
+    </div>
+    
+    {/* Profile content */}
+<div className="p-4 space-y-2.5 max-h-80 overflow-y-auto">
+      <div className="flex justify-between items-center border-b pb-1.5">
+        <span className="text-gray-500 text-sm">Student ID:</span>
+        <span className="font-medium">{studentData.studentId || 'N/A'}</span>
+      </div>
+      <div className="flex justify-between items-center border-b pb-1.5">
+        <span className="text-gray-500 text-sm">Name:</span>
+        <span className="font-medium">{studentData.name || 'N/A'}</span>
+      </div>
+      <div className="flex justify-between items-center border-b pb-1.5">
+        <span className="text-gray-500 text-sm">Email:</span>
+        <span className="font-medium">{studentData.email || 'N/A'}</span>
+      </div>
+      <div className="flex justify-between items-center border-b pb-1.5">
+        <span className="text-gray-500 text-sm">Phone:</span>
+        <span className="font-medium">{studentData.phone || 'N/A'}</span>
+      </div>
+      <div className="flex justify-between items-center border-b pb-1.5">
+        <span className="text-gray-500 text-sm">School:</span>
+        <span className="font-medium">{studentData.schoolName || 'N/A'}</span>
+      </div>
+      <div className="flex justify-between items-center border-b pb-1.5">
+        <span className="text-gray-500 text-sm">District:</span>
+        <span className="font-medium">{studentData.districtName || 'N/A'}</span>
+      </div>
+      <div className="flex justify-between items-center">
+        <span className="text-gray-500 text-sm">State:</span>
+        <span className="font-medium">{studentData.state || 'N/A'}</span>
+      </div>
+    </div>
+  </div>
+);
 export default StudentHeader;

@@ -63,7 +63,8 @@ const Webinars = () => {
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'completed'>('upcoming');
+  const [activeTab, setActiveTab] = useState<'students' | 'parents'>('students');
+  const [activeSubTab, setActiveSubTab] = useState<'upcoming' | 'completed'>('upcoming');
   const [selectedWebinar, setSelectedWebinar] = useState<Webinar | null>(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
 
@@ -381,29 +382,61 @@ const Webinars = () => {
           <div className="bg-white/70 backdrop-blur-sm rounded-xl p-1 shadow-lg">
             <div className="flex gap-1">
               <button
-                onClick={() => setActiveTab('upcoming')}
+                onClick={() => setActiveTab('students')}
                 className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
-                  activeTab === 'upcoming'
+                  activeTab === 'students'
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'text-gray-600 hover:text-blue-600'
+                }`}
+              >
+                Students
+              </button>
+              <button
+                onClick={() => setActiveTab('parents')}
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
+                  activeTab === 'parents'
+                    ? 'bg-pink-600 text-white shadow-lg'
+                    : 'text-gray-600 hover:text-pink-600'
+                }`}
+              >
+                Parents
+              </button>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Sub-Tab Navigation */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex justify-center mb-8"
+        >
+          <div className="bg-white/70 backdrop-blur-sm rounded-xl p-1 shadow-lg">
+            <div className="flex gap-1">
+              <button
+                onClick={() => setActiveSubTab('upcoming')}
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
+                  activeSubTab === 'upcoming'
                     ? 'bg-purple-600 text-white shadow-lg'
                     : 'text-gray-600 hover:text-purple-600'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  Upcoming ({upcomingWebinars.length})
+                  Upcoming
                 </div>
               </button>
               <button
-                onClick={() => setActiveTab('completed')}
+                onClick={() => setActiveSubTab('completed')}
                 className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
-                  activeTab === 'completed'
+                  activeSubTab === 'completed'
                     ? 'bg-purple-600 text-white shadow-lg'
                     : 'text-gray-600 hover:text-purple-600'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4" />
-                  Completed ({completedWebinars.length})
+                  Completed
                 </div>
               </button>
             </div>
@@ -413,14 +446,21 @@ const Webinars = () => {
         {/* Webinars Grid */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={activeTab}
+            key={`${activeTab}-${activeSubTab}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            {(activeTab === 'upcoming' ? upcomingWebinars : completedWebinars).map((webinar, index) => {
+            {(() => {
+              // Filter webinars based on active tabs
+              const filteredWebinars = webinars.filter(webinar =>
+                webinar.audienceType === activeTab &&
+                (activeSubTab === 'upcoming' ? !isWebinarCompleted(webinar) : isWebinarCompleted(webinar))
+              );
+
+              return filteredWebinars.map((webinar, index) => {
               const isWebinarStarted = () => {
                 if (!webinar.scheduledDate) return false;
                 const scheduledDate = webinar.scheduledDate.toDate ? webinar.scheduledDate.toDate() : new Date(webinar.scheduledDate);
@@ -505,13 +545,20 @@ const Webinars = () => {
                     {canWatch ? 'Watch Webinar' : 'Available Soon'}
                   </button>
                 </motion.div>
-              );
-            })}
+                );
+              });
+            })()}
           </motion.div>
         </AnimatePresence>
 
         {/* Empty State */}
-        {(activeTab === 'upcoming' ? upcomingWebinars : completedWebinars).length === 0 && (
+        {(() => {
+          const filteredWebinars = webinars.filter(webinar =>
+            webinar.audienceType === activeTab &&
+            (activeSubTab === 'upcoming' ? !isWebinarCompleted(webinar) : isWebinarCompleted(webinar))
+          );
+          
+          return filteredWebinars.length === 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -519,15 +566,16 @@ const Webinars = () => {
           >
             <Video className="w-24 h-24 text-gray-300 mx-auto mb-6" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              No {activeTab} webinars
+              No {activeSubTab} webinars for {activeTab}
             </h3>
             <p className="text-gray-600">
-              {activeTab === 'upcoming' 
+              {activeSubTab === 'upcoming' 
                 ? 'Check back later for new webinars!' 
                 : 'Complete some webinars to see them here.'}
             </p>
           </motion.div>
-        )}
+        );
+        })()}
       </div>
 
       {/* Video Modal */}
