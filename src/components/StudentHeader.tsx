@@ -5,6 +5,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/t
 import { Trophy, Flame, ArrowLeft, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useStudentData } from '../hooks/useStudentData';
+import { ProfileModal } from './student';
 
 interface StudentHeaderProps {
   /**
@@ -22,12 +23,27 @@ interface StudentHeaderProps {
    * Defaults to "Back to Dashboard".
    */
   backLabel?: string;
+  /**
+   * Student's total points – if omitted, the points / streak cluster will be hidden.
+   */
+  totalPoints?: number;
+  /**
+   * Student's current daily-streak – if omitted, the points / streak cluster will be hidden.
+   */
+  currentStreak?: number;
+  /**
+   * The student's ID.
+   */
+  studentId?: string;
 }
 
 const StudentHeader: React.FC<StudentHeaderProps> = ({
   showBackButton = true,
   backTo = '/dashboard',
   backLabel = 'Back to Dashboard',
+  totalPoints: propTotalPoints,
+  currentStreak: propCurrentStreak,
+  studentId,
 }) => {
   const navigate = useNavigate();
   const studentData = useStudentData();
@@ -81,56 +97,64 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({
             )}
           </div>
 
-          {/* Right section – Stats and Profile (always show, with loading state) */}
-          <motion.div
-            className="flex items-center gap-4"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="flex items-center gap-2 bg-gradient-to-r from-yellow-100 to-orange-100 px-4 py-2 rounded-full">
-              <Trophy className="w-5 h-5 text-yellow-600" />
-              <span className="font-bold text-yellow-800">
-                {loading ? '...' : `${totalPoints} Points`}
-              </span>
-            </div>
-
-            <div
-              className={`flex items-center gap-2 bg-gradient-to-r ${getStreakColor(
-                currentStreak
-              )} px-4 py-2 rounded-full text-white`}
-            >
+          {/* Right section – Stats and Profile */}
+          <div className="flex items-center gap-4">
+            {/* Use hook data if available, otherwise fall back to props */}
+            {(totalPoints !== undefined || propTotalPoints !== undefined) && 
+             (currentStreak !== undefined || propCurrentStreak !== undefined) && (
               <motion.div
-                animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
+                className="flex items-center gap-4"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
               >
-                <Flame className="w-5 h-5" />
-              </motion.div>
-              <span className="font-bold">
-                {loading ? '...' : `${currentStreak} Day Streak`}
-              </span>
-            </div>
+                <div className="flex items-center gap-2 bg-gradient-to-r from-yellow-100 to-orange-100 px-4 py-2 rounded-full">
+                  <Trophy className="w-5 h-5 text-yellow-600" />
+                  <span className="font-bold text-yellow-800">
+                    {loading ? '...' : `${totalPoints ?? propTotalPoints} Points`}
+                  </span>
+                </div>
 
-{/* Profile Icon with Tooltip */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <motion.button
-                    className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white cursor-pointer border-2 border-transparent hover:border-purple-300 transition-all duration-200"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                <div
+                  className={`flex items-center gap-2 bg-gradient-to-r ${getStreakColor(
+                    currentStreak ?? propCurrentStreak
+                  )} px-4 py-2 rounded-full text-white`}
+                >
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
                   >
-                    <User className="w-5 h-5" />
-                  </motion.button>
-                </TooltipTrigger>
-<TooltipContent sideOffset={5} align="end" className="bg-white p-0 rounded-xl shadow-xl border border-gray-100 w-72 overflow-hidden z-50">
-                  <ProfileDetails studentData={studentData} />
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </motion.div>
+                    <Flame className="w-5 h-5" />
+                  </motion.div>
+                  <span className="font-bold">
+                    {loading ? '...' : `${currentStreak ?? propCurrentStreak} Day Streak`}
+                  </span>
+                </div>
+              </motion.div>
+            )}
 
-          {/* Using tooltip instead of modal now */}
+            {/* Profile - use tooltip if studentData is available, otherwise use modal */}
+            {studentData.studentId ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <motion.button
+                      className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white cursor-pointer border-2 border-transparent hover:border-purple-300 transition-all duration-200"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <User className="w-5 h-5" />
+                    </motion.button>
+                  </TooltipTrigger>
+                  <TooltipContent sideOffset={5} align="end" className="bg-white p-0 rounded-xl shadow-xl border border-gray-100 w-72 overflow-hidden z-50">
+                    <ProfileDetails studentData={studentData} />
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              studentId && <ProfileModal studentId={studentId} />
+            )}
+          </div>
         </div>
       </div>
     </motion.header>

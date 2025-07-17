@@ -379,6 +379,9 @@ const Dashboard = () => {
       {/* Sticky Header */}
       <StudentHeader 
         showBackButton={false} 
+        totalPoints={studentData.totalPoints} 
+        currentStreak={studentData.streakCount}
+        studentId={user?.uid}
       />
 
       {/* Main Content */}
