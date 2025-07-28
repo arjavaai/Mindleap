@@ -10,6 +10,7 @@ import { Label } from '../ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import Editor from 'react-simple-wysiwyg';
+import ImageUploadEditor from './ImageUploadEditor';
 
 interface Subject {
   id: string;
@@ -416,84 +417,44 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="space-y-6">
               {/* Question */}
-              <div>
-                <Label htmlFor="question" className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  Question <span className="text-red-500">*</span>
-                </Label>
-                <div className="mt-1 border border-gray-300 rounded-md">
-                  <Editor
-                    value={formData.question}
-                    onChange={(e) => setFormData(prev => ({ ...prev, question: e.target.value }))}
-                    placeholder="Enter your question with formatting..."
-                    containerProps={{
-                      style: { minHeight: '100px', border: 'none' }
-                    }}
-                  />
-                </div>
-              </div>
+              <ImageUploadEditor
+                value={formData.question}
+                onChange={(value) => setFormData(prev => ({ ...prev, question: value }))}
+                placeholder="Enter your question with formatting..."
+                minHeight="100px"
+                label="Question *"
+              />
 
               {/* Options */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="optionA" className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                    Option A <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="mt-1 border border-gray-300 rounded-md">
-                    <Editor
-                      value={formData.optionA}
-                      onChange={(e) => setFormData(prev => ({ ...prev, optionA: e.target.value }))}
-                      placeholder="Enter option A with formatting..."
-                      containerProps={{
-                        style: { minHeight: '60px', border: 'none' }
-                      }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="optionB" className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                    Option B <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="mt-1 border border-gray-300 rounded-md">
-                    <Editor
-                      value={formData.optionB}
-                      onChange={(e) => setFormData(prev => ({ ...prev, optionB: e.target.value }))}
-                      placeholder="Enter option B with formatting..."
-                      containerProps={{
-                        style: { minHeight: '60px', border: 'none' }
-                      }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="optionC" className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                    Option C <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="mt-1 border border-gray-300 rounded-md">
-                    <Editor
-                      value={formData.optionC}
-                      onChange={(e) => setFormData(prev => ({ ...prev, optionC: e.target.value }))}
-                      placeholder="Enter option C with formatting..."
-                      containerProps={{
-                        style: { minHeight: '60px', border: 'none' }
-                      }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="optionD" className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                    Option D <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="mt-1 border border-gray-300 rounded-md">
-                    <Editor
-                      value={formData.optionD}
-                      onChange={(e) => setFormData(prev => ({ ...prev, optionD: e.target.value }))}
-                      placeholder="Enter option D with formatting..."
-                      containerProps={{
-                        style: { minHeight: '60px', border: 'none' }
-                      }}
-                    />
-                  </div>
-                </div>
+                <ImageUploadEditor
+                  value={formData.optionA}
+                  onChange={(value) => setFormData(prev => ({ ...prev, optionA: value }))}
+                  placeholder="Enter option A with formatting..."
+                  minHeight="60px"
+                  label="Option A *"
+                />
+                <ImageUploadEditor
+                  value={formData.optionB}
+                  onChange={(value) => setFormData(prev => ({ ...prev, optionB: value }))}
+                  placeholder="Enter option B with formatting..."
+                  minHeight="60px"
+                  label="Option B *"
+                />
+                <ImageUploadEditor
+                  value={formData.optionC}
+                  onChange={(value) => setFormData(prev => ({ ...prev, optionC: value }))}
+                  placeholder="Enter option C with formatting..."
+                  minHeight="60px"
+                  label="Option C *"
+                />
+                <ImageUploadEditor
+                  value={formData.optionD}
+                  onChange={(value) => setFormData(prev => ({ ...prev, optionD: value }))}
+                  placeholder="Enter option D with formatting..."
+                  minHeight="60px"
+                  label="Option D *"
+                />
               </div>
 
               {/* Correct Option */}
@@ -515,21 +476,13 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
               </div>
 
               {/* Explanation */}
-              <div>
-                <Label htmlFor="explanation" className="text-sm font-medium text-gray-700">
-                  Explanation
-                </Label>
-                <div className="mt-1 border border-gray-300 rounded-md">
-                  <Editor
-                    value={formData.explanation}
-                    onChange={(e) => setFormData(prev => ({ ...prev, explanation: e.target.value }))}
-                    placeholder="Explain why this is the correct answer with formatting..."
-                    containerProps={{
-                      style: { minHeight: '100px', border: 'none' }
-                    }}
-                  />
-                </div>
-              </div>
+              <ImageUploadEditor
+                value={formData.explanation}
+                onChange={(value) => setFormData(prev => ({ ...prev, explanation: value }))}
+                placeholder="Explain why this is the correct answer with formatting..."
+                minHeight="100px"
+                label="Explanation"
+              />
 
               {/* Actions */}
               <div className="flex gap-4 pt-4">

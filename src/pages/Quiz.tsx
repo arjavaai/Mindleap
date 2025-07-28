@@ -39,6 +39,8 @@ import {
   addDoc
 } from 'firebase/firestore';
 import StudentHeader from '../components/StudentHeader';
+import StudentAuthGuard from '../components/auth/StudentAuthGuard';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 
 interface Quiz {
   id: string;
@@ -113,6 +115,7 @@ const Quiz = () => {
   const [studentData, setStudentData] = useState<any>(null);
   const [quizAttempts, setQuizAttempts] = useState<Record<string, boolean>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState('ongoing');
 
   useEffect(() => {
     // Fetch quizzes immediately when component mounts
@@ -232,7 +235,8 @@ const Quiz = () => {
         const quizData = { id: doc.id, ...doc.data() } as Quiz;
         // Check if quiz is active (if isActive field exists, it should be true, otherwise default to true)
         const isActive = quizData.isActive !== undefined ? quizData.isActive : true;
-        if (isActive && isQuizActive(quizData)) {
+        if (isActive) {
+          // Include all quizzes (both active and expired) to show expired ones with different styling
           quizzes.push(quizData);
         }
       });
@@ -252,7 +256,7 @@ const Quiz = () => {
           stateQuizzesSnapshot.forEach(doc => {
             const quizData = { id: doc.id, ...doc.data() } as Quiz;
             const isActive = quizData.isActive !== undefined ? quizData.isActive : true;
-            if (isActive && isQuizActive(quizData)) {
+            if (isActive) {
               quizzes.push(quizData);
             }
           });
@@ -270,7 +274,7 @@ const Quiz = () => {
           districtQuizzesSnapshot.forEach(doc => {
             const quizData = { id: doc.id, ...doc.data() } as Quiz;
             const isActive = quizData.isActive !== undefined ? quizData.isActive : true;
-            if (isActive && isQuizActive(quizData)) {
+            if (isActive) {
               quizzes.push(quizData);
             }
           });
@@ -302,7 +306,7 @@ const Quiz = () => {
             schoolQuizzesSnapshot.forEach(doc => {
               const quizData = { id: doc.id, ...doc.data() } as Quiz;
               const isActive = quizData.isActive !== undefined ? quizData.isActive : true;
-              if (isActive && isQuizActive(quizData)) {
+              if (isActive) {
                 quizzes.push(quizData);
               }
             });
@@ -324,7 +328,7 @@ const Quiz = () => {
           studentQuizzesSnapshot.forEach((doc) => {
             const quizData = { id: doc.id, ...doc.data() } as Quiz;
             const isActive = quizData.isActive !== undefined ? quizData.isActive : true;
-            if (isActive && isQuizActive(quizData)) {
+            if (isActive) {
               quizzes.push(quizData);
             }
           });
@@ -335,6 +339,13 @@ const Quiz = () => {
       const uniqueQuizzes = quizzes.filter((quiz, index, self) => 
         index === self.findIndex(q => q.id === quiz.id)
       );
+
+      // Sort by creation date (newest first)
+      uniqueQuizzes.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
 
       console.log('Total unique quizzes found:', uniqueQuizzes.length);
       setAvailableQuizzes(uniqueQuizzes);
@@ -367,6 +378,16 @@ const Quiz = () => {
     }
   };
 
+  // Utility function to shuffle array (Fisher-Yates shuffle)
+  const shuffleArray = (array: any[]) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   const startQuiz = (quiz: Quiz) => {
     // Ensure quiz has questions
     if (!quiz.questions || quiz.questions.length === 0) {
@@ -375,13 +396,21 @@ const Quiz = () => {
       return;
     }
     
-    setCurrentQuiz(quiz);
+    // Create a randomized copy of questions for this student
+    const shuffledQuestions = shuffleArray(quiz.questions);
+    const randomizedQuiz = {
+      ...quiz,
+      questions: shuffledQuestions
+    };
+    
+    setCurrentQuiz(randomizedQuiz);
     setTimeLeft(quiz.duration);
     setQuizStarted(true);
     setSelectedAnswer(null);
     setShowResults(false);
     setAnswers([]);
     setScore(0);
+    setCurrentQuestionIndex(0); // Reset to first question
   };
 
   const handleAnswerSelect = (answerIndex: number) => {
@@ -574,6 +603,202 @@ const Quiz = () => {
 
   const hasAttemptedQuiz = (quizId: string) => {
     return quizAttempts[quizId] || false;
+  };
+
+  // Categorize quizzes based on their status
+  const categorizeQuizzes = () => {
+    const ongoing = availableQuizzes.filter(quiz => !hasAttemptedQuiz(quiz.id) && isQuizActive(quiz));
+    const completed = availableQuizzes.filter(quiz => hasAttemptedQuiz(quiz.id));
+    const expired = availableQuizzes.filter(quiz => !isQuizActive(quiz) && !hasAttemptedQuiz(quiz.id));
+    
+    return { ongoing, completed, expired };
+  };
+
+  const { ongoing, completed, expired } = categorizeQuizzes();
+
+  // Quiz Card Component
+  const QuizCard = ({ quiz, index, type }: { quiz: Quiz; index: number; type: 'ongoing' | 'completed' | 'expired' }) => {
+    const isCompleted = hasAttemptedQuiz(quiz.id);
+    const isExpired = !isQuizActive(quiz);
+    const canStart = !isCompleted && !isExpired;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.1 }}
+        className={`backdrop-blur-sm rounded-3xl p-6 transition-all relative overflow-hidden ${
+          type === 'expired' 
+            ? 'bg-red-50/70 border-2 border-red-200' 
+            : type === 'completed' 
+            ? 'bg-white/70 opacity-90' 
+            : 'bg-white/70 hover:shadow-xl cursor-pointer group'
+        }`}
+        onClick={() => canStart && startQuiz(quiz)}
+        whileHover={canStart ? { scale: 1.05, y: -5 } : {}}
+      >
+        {/* Completion Badge and Duration - Fixed Layout */}
+        <div className="flex items-start justify-between mb-4">
+          <motion.div
+            animate={type === 'ongoing' ? { 
+              rotate: [0, 5, -5, 0],
+              scale: [1, 1.1, 1]
+            } : {}}
+            transition={{ duration: 3, repeat: Infinity, delay: index * 0.2 }}
+            className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+              type === 'completed' 
+                ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+                : type === 'expired'
+                ? 'bg-gradient-to-r from-red-500 to-red-600'
+                : 'bg-gradient-to-r from-blue-500 to-purple-500'
+            }`}
+          >
+            {type === 'completed' ? (
+              <Trophy className="w-6 h-6 text-white" />
+            ) : type === 'expired' ? (
+              <XCircle className="w-6 h-6 text-white" />
+            ) : (
+              <Brain className="w-6 h-6 text-white" />
+            )}
+          </motion.div>
+          
+          <div className="text-right">
+            {/* Status Badge */}
+            {type === 'completed' && (
+              <motion.div
+                initial={{ scale: 0, rotate: -45 }}
+                animate={{ scale: 1, rotate: 0 }}
+                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 mb-2"
+              >
+                <CheckCircle className="w-3 h-3" />
+                Completed
+              </motion.div>
+            )}
+            
+            {type === 'expired' && (
+              <motion.div
+                initial={{ scale: 0, rotate: -45 }}
+                animate={{ scale: 1, rotate: 0 }}
+                className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 mb-2"
+              >
+                <XCircle className="w-3 h-3" />
+                Expired
+              </motion.div>
+            )}
+            
+            {/* Duration */}
+            <div>
+              <p className="text-sm text-gray-600">Duration</p>
+              <p className="font-bold text-gray-800">{formatTime(quiz.duration)}</p>
+            </div>
+          </div>
+        </div>
+
+        <h3 className={`text-xl font-bold text-gray-800 mb-2 ${
+          type === 'expired' ? 'line-clamp-1' : ''
+        }`}>{quiz.title}</h3>
+        
+        <p className={`text-gray-600 mb-4 overflow-hidden ${
+          type === 'expired' ? 'line-clamp-1' : 'line-clamp-2'
+        }`} style={{ 
+          display: '-webkit-box',
+          WebkitLineClamp: type === 'expired' ? 1 : 2,
+          WebkitBoxOrient: 'vertical'
+        }}>
+          {type === 'expired' 
+            ? `${quiz.questions.length} Questions • Access Expired` 
+            : `${quiz.questions.length} Questions`
+          }
+        </p>
+
+        <div className="flex items-center justify-between mb-4">
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+            quiz.targetType === 'all' ? 'bg-green-100 text-green-700' :
+            quiz.targetType === 'state' ? 'bg-blue-100 text-blue-700' :
+            quiz.targetType === 'district' ? 'bg-purple-100 text-purple-700' :
+            'bg-orange-100 text-orange-700'
+          }`}>
+            {getTargetIcon(quiz.targetType)}
+            <span className="ml-1">
+              {quiz.targetType.charAt(0).toUpperCase() + quiz.targetType.slice(1)}
+            </span>
+          </span>
+          
+          {type === 'expired' ? (
+            <motion.div
+              className="flex items-center text-red-600 font-semibold"
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <XCircle className="w-5 h-5 mr-1" />
+              <span className="text-sm">Expired</span>
+            </motion.div>
+          ) : type === 'completed' ? (
+            <motion.div
+              className="flex items-center text-green-600 font-semibold"
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <CheckCircle className="w-5 h-5 mr-1" />
+              <span className="text-sm">Done</span>
+            </motion.div>
+          ) : (
+            <motion.div
+              className="flex items-center text-blue-600 font-semibold group-hover:text-blue-700"
+              animate={{ x: [0, 5, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <Play className="w-5 h-5 mr-1" />
+              <span className="text-sm">Start</span>
+            </motion.div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        {type === 'expired' ? (
+          <motion.button
+            disabled
+            className="w-full bg-gradient-to-r from-red-400 to-red-500 text-white py-3 rounded-xl font-semibold cursor-not-allowed opacity-80 flex items-center justify-center gap-2 text-sm"
+          >
+            <XCircle className="w-5 h-5" />
+            Quiz Expired
+          </motion.button>
+        ) : type === 'completed' ? (
+          <motion.button
+            onClick={(e) => {
+              e.stopPropagation();
+              viewQuizResults(quiz);
+            }}
+            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Eye className="w-5 h-5" />
+            View Results
+          </motion.button>
+        ) : (
+          <motion.button
+            onClick={() => startQuiz(quiz)}
+            className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Play className="w-5 h-5" />
+            Start Quiz
+          </motion.button>
+        )}
+
+        {/* Overlay for completed quizzes */}
+        {type === 'completed' && (
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-emerald-600/5 rounded-3xl pointer-events-none" />
+        )}
+        
+        {/* Overlay for expired quizzes */}
+        {type === 'expired' && (
+          <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-red-600/5 rounded-3xl pointer-events-none" />
+        )}
+      </motion.div>
+    );
   };
 
   const resetQuizState = () => {
@@ -1090,26 +1315,26 @@ const Quiz = () => {
 
         {/* Quiz Content with Navigation */}
         <div className="container mx-auto px-4 py-8">
-          <div className="flex gap-8 max-w-7xl mx-auto">
+          <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto">
             {/* Question Navigation Panel */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="w-80 bg-white/70 backdrop-blur-sm rounded-3xl p-6 h-fit sticky top-8"
+              className="w-full lg:w-80 bg-white/70 backdrop-blur-sm rounded-3xl p-4 lg:p-6 h-fit lg:sticky lg:top-8"
             >
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Target className="w-5 h-5 text-blue-500" />
+              <h3 className="text-sm lg:text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <Target className="w-4 lg:w-5 h-4 lg:h-5 text-blue-500" />
                 Question Navigator
               </h3>
               
-              <div className="grid grid-cols-5 gap-2 mb-6">
+              <div className="grid grid-cols-8 sm:grid-cols-10 lg:grid-cols-5 gap-2 mb-6">
                 {currentQuiz.questions.map((_, index) => {
                   const status = getQuestionStatus(index);
                   return (
                     <motion.button
                       key={index}
                       onClick={() => handleQuestionNavigation(index)}
-                      className={`w-12 h-12 rounded-lg font-semibold text-sm transition-all ${
+                      className={`w-8 h-8 lg:w-12 lg:h-12 rounded-lg font-semibold text-xs lg:text-sm transition-all ${
                         status === 'current' 
                           ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white ring-2 ring-blue-300' :
                         status === 'attempted'
@@ -1125,24 +1350,24 @@ const Quiz = () => {
                 })}
               </div>
 
-              <div className="space-y-3 text-sm">
+              <div className="space-y-3 text-xs lg:text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded"></div>
+                  <div className="w-3 h-3 lg:w-4 lg:h-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded"></div>
                   <span>Current Question</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gradient-to-r from-green-400 to-green-500 rounded"></div>
+                  <div className="w-3 h-3 lg:w-4 lg:h-4 bg-gradient-to-r from-green-400 to-green-500 rounded"></div>
                   <span>Attempted ({answers.filter(a => a !== undefined).length})</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gray-100 rounded"></div>
+                  <div className="w-3 h-3 lg:w-4 lg:h-4 bg-gray-100 rounded"></div>
                   <span>Not Attempted ({currentQuiz.questions.length - answers.filter(a => a !== undefined).length})</span>
                 </div>
               </div>
 
               {/* Progress Bar */}
-              <div className="mt-6">
-                <div className="flex justify-between text-sm text-gray-600 mb-2">
+              <div className="mt-4 lg:mt-6">
+                <div className="flex justify-between text-xs lg:text-sm text-gray-600 mb-2">
                   <span>Progress</span>
                   <span>{Math.round((answers.filter(a => a !== undefined).length / currentQuiz.questions.length) * 100)}%</span>
                 </div>
@@ -1165,17 +1390,17 @@ const Quiz = () => {
               animate={{ opacity: 1, y: 0 }}
               className="flex-1"
             >
-              <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8">
+              <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-4 lg:p-8">
                 <motion.h2
                   key={currentQuestionIndex}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="text-2xl font-bold text-gray-800 mb-8"
+                  className="text-lg lg:text-2xl font-bold text-gray-800 mb-6 lg:mb-8"
                 >
                   {currentQuestion.question}
                 </motion.h2>
 
-                <div className="grid gap-4 mb-8">
+                <div className="grid gap-3 lg:gap-4 mb-6 lg:mb-8">
                   {currentQuestion.options.map((option, index) => (
                     <motion.button
                       key={index}
@@ -1183,7 +1408,7 @@ const Quiz = () => {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.1 }}
                       onClick={() => handleAnswerSelect(index)}
-                      className={`p-4 rounded-xl text-left transition-all border-2 ${
+                      className={`p-3 lg:p-4 rounded-xl text-left transition-all border-2 text-sm lg:text-base ${
                         selectedAnswer === index
                           ? 'border-blue-500 bg-blue-50 text-blue-700'
                           : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
@@ -1191,61 +1416,64 @@ const Quiz = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center ${
+                      <div className="flex items-center gap-3 lg:gap-4">
+                        <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full border-2 flex items-center justify-center text-sm lg:text-base ${
                           selectedAnswer === index
                             ? 'border-blue-500 bg-blue-500 text-white'
                             : 'border-gray-300'
                         }`}>
                           {String.fromCharCode(65 + index)}
                         </div>
-                        <span className="text-lg">{option}</span>
+                        <span className="text-sm lg:text-lg">{option}</span>
                       </div>
                     </motion.button>
                   ))}
                 </div>
 
                 {/* Navigation Buttons */}
-                <div className="flex justify-between items-center">
-                  <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                  <div className="flex gap-2 lg:gap-3 w-full sm:w-auto">
                     {currentQuestionIndex > 0 && (
                       <button
                         onClick={() => handleQuestionNavigation(currentQuestionIndex - 1)}
-                        className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-all flex items-center gap-2"
+                        className="px-3 lg:px-6 py-2 lg:py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-all flex items-center gap-2 text-sm lg:text-base flex-1 sm:flex-none justify-center"
                       >
-                        <ArrowLeft className="w-5 h-5" />
-                        Previous
+                        <ArrowLeft className="w-4 lg:w-5 h-4 lg:h-5" />
+                        <span className="hidden sm:inline">Previous</span>
+                        <span className="sm:hidden">Prev</span>
                       </button>
                     )}
                     
                     <button
                       onClick={handleSkipQuestion}
                       disabled={currentQuestionIndex >= currentQuiz.questions.length - 1}
-                      className="px-6 py-3 bg-yellow-200 text-yellow-700 rounded-xl font-semibold hover:bg-yellow-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 lg:px-6 py-2 lg:py-3 bg-yellow-200 text-yellow-700 rounded-xl font-semibold hover:bg-yellow-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm lg:text-base flex-1 sm:flex-none"
                     >
-                      Skip Question
+                      <span className="hidden sm:inline">Skip Question</span>
+                      <span className="sm:hidden">Skip</span>
                     </button>
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="flex gap-2 lg:gap-3 w-full sm:w-auto">
                     {currentQuestionIndex < currentQuiz.questions.length - 1 ? (
                       <button
                         onClick={handleNextQuestion}
                         disabled={selectedAnswer === null}
-                        className={`px-8 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 ${
+                        className={`px-4 lg:px-8 py-2 lg:py-3 rounded-xl font-semibold transition-all flex items-center gap-2 text-sm lg:text-base flex-1 sm:flex-none justify-center ${
                           selectedAnswer !== null
                             ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:shadow-lg'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }`}
                       >
-                        Next Question
-                        <ArrowRight className="w-5 h-5" />
+                        <span className="hidden sm:inline">Next Question</span>
+                        <span className="sm:hidden">Next</span>
+                        <ArrowRight className="w-4 lg:w-5 h-4 lg:h-5" />
                       </button>
                     ) : (
                       <button
                         onClick={() => submitQuiz()}
                         disabled={submitting}
-                        className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
+                        className="px-4 lg:px-8 py-2 lg:py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 text-sm lg:text-base flex-1 sm:flex-none justify-center"
                       >
                         {submitting ? (
                           <>
@@ -1303,7 +1531,7 @@ const Quiz = () => {
             </motion.p>
           </div>
 
-          {availableQuizzes.length === 0 ? (
+{availableQuizzes.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1343,135 +1571,79 @@ const Quiz = () => {
               )}
             </motion.div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {availableQuizzes.map((quiz, index) => {
-                const isCompleted = hasAttemptedQuiz(quiz.id);
-                return (
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 mb-8 bg-white/70 backdrop-blur-sm">
+                <TabsTrigger value="ongoing" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+                  Ongoing ({ongoing.length})
+                </TabsTrigger>
+                <TabsTrigger value="completed" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">
+                  Completed ({completed.length})
+                </TabsTrigger>
+                <TabsTrigger value="expired" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+                  Expired ({expired.length})
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="ongoing">
+                {ongoing.length === 0 ? (
                   <motion.div
-                    key={quiz.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className={`bg-white/70 backdrop-blur-sm rounded-3xl p-6 transition-all relative overflow-hidden ${
-                      isCompleted 
-                        ? 'opacity-90' 
-                        : 'hover:shadow-xl cursor-pointer group'
-                    }`}
-                    onClick={() => !isCompleted && startQuiz(quiz)}
-                    whileHover={!isCompleted ? { scale: 1.05, y: -5 } : {}}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-12"
                   >
-                    {/* Completion Badge */}
-                    {isCompleted && (
-                      <motion.div
-                        initial={{ scale: 0, rotate: -45 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        className="absolute top-4 right-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"
-                      >
-                        <CheckCircle className="w-3 h-3" />
-                        Completed
-                      </motion.div>
-                    )}
-
-                    <div className="flex items-center justify-between mb-4">
-                      <motion.div
-                        animate={!isCompleted ? { 
-                          rotate: [0, 5, -5, 0],
-                          scale: [1, 1.1, 1]
-                        } : {}}
-                        transition={{ duration: 3, repeat: Infinity, delay: index * 0.2 }}
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                          isCompleted 
-                            ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
-                            : 'bg-gradient-to-r from-blue-500 to-purple-500'
-                        }`}
-                      >
-                        {isCompleted ? (
-                          <Trophy className="w-6 h-6 text-white" />
-                        ) : (
-                          <Brain className="w-6 h-6 text-white" />
-                        )}
-                      </motion.div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-600">Duration</p>
-                        <p className="font-bold text-gray-800">{formatTime(quiz.duration)}</p>
-                      </div>
-                    </div>
-
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">{quiz.title}</h3>
-                    <p className="text-gray-600 mb-4 overflow-hidden" style={{ 
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical'
-                    }}>{quiz.questions.length} Questions</p>
-
-                    <div className="flex items-center justify-between mb-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        quiz.targetType === 'all' ? 'bg-green-100 text-green-700' :
-                        quiz.targetType === 'state' ? 'bg-blue-100 text-blue-700' :
-                        quiz.targetType === 'district' ? 'bg-purple-100 text-purple-700' :
-                        'bg-orange-100 text-orange-700'
-                      }`}>
-                        {getTargetIcon(quiz.targetType)}
-                        <span className="ml-1">
-                          {quiz.targetType.charAt(0).toUpperCase() + quiz.targetType.slice(1)}
-                        </span>
-                      </span>
-                      
-                      {isCompleted ? (
-                        <motion.div
-                          className="flex items-center text-green-600 font-semibold"
-                          animate={{ scale: [1, 1.1, 1] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        >
-                          <CheckCircle className="w-5 h-5 mr-1" />
-                          <span className="text-sm">Done</span>
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          className="flex items-center text-blue-600 font-semibold group-hover:text-blue-700"
-                          animate={{ x: [0, 5, 0] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        >
-                          <Play className="w-5 h-5 mr-1" />
-                          <span className="text-sm">Start</span>
-                        </motion.div>
-                      )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    {isCompleted ? (
-                      <motion.button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          viewQuizResults(quiz);
-                        }}
-                        className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <Eye className="w-5 h-5" />
-                        View Results
-                      </motion.button>
-                    ) : (
-                      <motion.button
-                        onClick={() => startQuiz(quiz)}
-                        className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <Play className="w-5 h-5" />
-                        Start Quiz
-                      </motion.button>
-                    )}
-
-                    {/* Overlay for completed quizzes */}
-                    {isCompleted && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-emerald-600/5 rounded-3xl pointer-events-none" />
-                    )}
+                    <Play className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-600 mb-2">No Ongoing Quizzes</h3>
+                    <p className="text-gray-500">All available quizzes have been completed or expired.</p>
                   </motion.div>
-                );
-              })}
-            </div>
+                ) : (
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {ongoing.map((quiz, index) => (
+                      <QuizCard key={quiz.id} quiz={quiz} index={index} type="ongoing" />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="completed">
+                {completed.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-12"
+                  >
+                    <Trophy className="w-16 h-16 text-green-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-600 mb-2">No Completed Quizzes</h3>
+                    <p className="text-gray-500">Complete some quizzes to see your results here.</p>
+                  </motion.div>
+                ) : (
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {completed.map((quiz, index) => (
+                      <QuizCard key={quiz.id} quiz={quiz} index={index} type="completed" />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="expired">
+                {expired.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-12"
+                  >
+                    <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-600 mb-2">No Expired Quizzes</h3>
+                    <p className="text-gray-500">All quizzes are still available for completion.</p>
+                  </motion.div>
+                ) : (
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {expired.map((quiz, index) => (
+                      <QuizCard key={quiz.id} quiz={quiz} index={index} type="expired" />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           )}
         </motion.div>
       </div>

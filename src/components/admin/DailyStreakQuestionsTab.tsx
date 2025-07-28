@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, BookOpen, Eye, Edit, Trash2, Calendar } from 'lucide-react';
+import { Plus, BookOpen, Eye, Edit, Trash2, Calendar, Shield } from 'lucide-react';
 import { collection, addDoc, getDocs, query, orderBy, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { useAdminPermissions } from './AdminContext';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
@@ -19,6 +20,7 @@ interface Subject {
 }
 
 const DailyStreakQuestionsTab = () => {
+  const { canDelete } = useAdminPermissions();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isAddSubjectModalOpen, setIsAddSubjectModalOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
@@ -96,6 +98,15 @@ const DailyStreakQuestionsTab = () => {
   };
 
   const handleDeleteSubject = async (subjectId: string) => {
+    if (!canDelete) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to delete subjects. Only the main administrator can perform delete operations.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       await deleteDoc(doc(db, 'subjects', subjectId));
       setSubjects(prev => prev.filter(subject => subject.id !== subjectId));
@@ -240,9 +251,14 @@ const DailyStreakQuestionsTab = () => {
                   </button>
                   <button
                     onClick={() => handleDeleteSubject(subject.id)}
-                    className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                    className={`p-2 ${canDelete 
+                      ? 'text-red-500 hover:bg-red-100' 
+                      : 'text-gray-400 cursor-not-allowed opacity-50'
+                    } rounded-lg transition-colors`}
+                    disabled={!canDelete}
+                    title={canDelete ? "Delete subject" : "Permission Denied - Only main admin can delete"}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {canDelete ? <Trash2 className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
                   </button>
                 </div>
               </div>

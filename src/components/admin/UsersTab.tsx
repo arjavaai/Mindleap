@@ -17,20 +17,40 @@ import {
   Copy,
   CheckSquare,
   Square,
-  Trash
+  Trash,
+  Shield
 } from 'lucide-react';
 import { collection, addDoc, getDocs, query, orderBy, updateDoc, doc, deleteDoc, where } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
+import { createUserWithEmailAndPassword, getAuth, deleteUser, signInWithEmailAndPassword } from 'firebase/auth';
 import { initializeApp } from 'firebase/app';
 import { db } from '../../lib/firebase';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useAdminPermissions } from './AdminContext';
 import { generatePassword } from '../../utils/studentIdGenerator';
 import * as XLSX from 'xlsx';
 import BulkUploadModal from './BulkUploadModal';
+
+// Secondary Firebase app for student creation (to avoid logging out admin)
+const getSecondaryFirebaseApp = () => {
+  const firebaseConfig = {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
+  };
+  
+  return initializeApp(firebaseConfig, 'studentCreation-' + Date.now());
+};
+
+// Get the main Firebase auth instead of using secondary app
+import { auth as mainAuth } from '../../lib/firebase';
 
 interface District {
   districtName: string;
@@ -67,6 +87,7 @@ interface Student {
   schoolCode: string;
   password: string;
   email: string;
+  uid?: string; // Firebase Auth UID
   state?: string;
   districtName?: string;
   schoolName?: string;
@@ -78,19 +99,8 @@ interface Student {
   address?: string;
 }
 
-// Secondary Firebase app for student creation
-const secondaryApp = initializeApp({
-  apiKey: "AIzaSyC7a43eeu9vH4fGeQfUuBpphpW7zuE8dBA",
-  authDomain: "test-mindleap.firebaseapp.com",
-  projectId: "test-mindleap",
-  storageBucket: "test-mindleap.firebasestorage.app",
-  messagingSenderId: "402749246470",
-  appId: "1:402749246470:web:c3411e9ccde8a419fbc787"
-}, "secondary");
-
-const secondaryAuth = getAuth(secondaryApp);
-
 const UsersTab = () => {
+  const { canDelete } = useAdminPermissions();
   const [students, setStudents] = useState<Student[]>([]);
   const [states, setStates] = useState<State[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
@@ -98,7 +108,6 @@ const UsersTab = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [isEnriching, setIsEnriching] = useState(false);
-  const [isDataEnriched, setIsDataEnriched] = useState(false);
   
   // Selection state
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
@@ -166,9 +175,11 @@ const UsersTab = () => {
 
   useEffect(() => {
     const initializeData = async () => {
+      console.log('🚀 Initializing data...');
       await fetchStates();
       await fetchSchools();
       await fetchStudents(); // Fetch all students on initial load
+      console.log('✅ Initial data loading completed');
     };
     initializeData();
   }, []);
@@ -188,37 +199,74 @@ const UsersTab = () => {
 
   // Re-enrich students when states or schools data changes
   useEffect(() => {
-    if (states.length > 0 && schools.length > 0 && students.length > 0 && !isDataEnriched && !isEnriching) {
+    console.log('🔍 Enrichment trigger check:', {
+      statesLength: states.length,
+      schoolsLength: schools.length,
+      studentsLength: students.length,
+      isEnriching,
+      shouldEnrich: states.length > 0 && schools.length > 0 && students.length > 0 && !isEnriching
+    });
+    
+    if (states.length > 0 && schools.length > 0 && students.length > 0 && !isEnriching) {
+      console.log('🚀 Triggering student data enrichment...');
       enrichStudentData();
     }
-  }, [states, schools, students, isDataEnriched, isEnriching]);
+  }, [states, schools, students, isEnriching]);
 
   const enrichStudentData = async () => {
-    if (isEnriching || isDataEnriched) return;
+    if (isEnriching) return;
+    
+    console.log('🔄 Starting student data enrichment...', {
+      studentsCount: students.length,
+      statesCount: states.length,
+      schoolsCount: schools.length,
+      sampleStudent: students[0] ? {
+        name: students[0].name,
+        districtCode: students[0].districtCode,
+        schoolCode: students[0].schoolCode,
+        currentState: students[0].state,
+        currentDistrictName: students[0].districtName,
+        currentSchoolName: students[0].schoolName
+      } : null
+    });
     
     setIsEnriching(true);
     
-    // Use setTimeout to prevent blocking the UI
-    setTimeout(() => {
-      setStudents(prevStudents => {
-        const enrichedStudents = prevStudents.map(student => {
-          // Check if already enriched (has state data)
-          if (student.state && student.districtName && student.schoolName) {
-            return student;
-          }
-          return enrichSingleStudent(student);
-        });
-        
-        setIsDataEnriched(true);
-        setIsEnriching(false);
-        return enrichedStudents;
+    try {
+      const enrichedStudents = students.map(student => {
+        // Always enrich if missing any data
+        if (!student.state || !student.districtName || !student.schoolName) {
+          console.log(`🔄 Enriching student ${student.name}...`);
+          const enriched = enrichSingleStudent(student);
+          console.log(`🔍 Enrichment result for ${student.name}:`, {
+            before: { state: student.state, district: student.districtName, school: student.schoolName },
+            after: { state: enriched.state, district: enriched.districtName, school: enriched.schoolName }
+          });
+          return enriched;
+        } else {
+          console.log(`✅ Student ${student.name} already enriched`);
+          return student;
+        }
       });
-    }, 0);
+      
+      console.log('✅ Student enrichment completed');
+      setStudents(enrichedStudents);
+    } catch (error) {
+      console.error('❌ Error during enrichment:', error);
+    } finally {
+      setIsEnriching(false);
+    }
   };
 
   const enrichSingleStudent = (studentData: any): Student => {
+    console.log(`🔍 Enriching student ${studentData.name}:`, {
+      districtCode: studentData.districtCode,
+      schoolCode: studentData.schoolCode
+    });
+    
     // Find related school information
     const school = schools.find(s => s.schoolCode === studentData.schoolCode);
+    console.log(`🏫 School lookup for code ${studentData.schoolCode}:`, school ? school.name : 'NOT FOUND');
     
     // Find related state and district information
     let state: State | undefined;
@@ -227,24 +275,28 @@ const UsersTab = () => {
     if (school) {
       // First try to find state by school's state
       state = states.find(s => s.stateName === school.state);
+      console.log(`🗺️ State lookup by school state ${school.state}:`, state ? state.stateName : 'NOT FOUND');
       if (state) {
         district = state.districts.find(d => d.districtCode === studentData.districtCode);
+        console.log(`🏘️ District lookup in ${state.stateName} for code ${studentData.districtCode}:`, district ? district.districtName : 'NOT FOUND');
       }
     }
     
     // Fallback: find state by district code
     if (!state || !district) {
+      console.log('🔄 Fallback: searching all states for district code', studentData.districtCode);
       for (const s of states) {
         const d = s.districts.find(d => d.districtCode === studentData.districtCode);
         if (d) {
           state = s;
           district = d;
+          console.log(`✅ Found district ${d.districtName} in state ${s.stateName}`);
           break;
         }
       }
     }
 
-    return {
+    const enrichedData = {
       id: studentData.id,
       name: studentData.name || '',
       studentId: studentData.studentId || '',
@@ -252,6 +304,7 @@ const UsersTab = () => {
       schoolCode: studentData.schoolCode || '',
       password: studentData.password || '',
       email: studentData.email || '',
+      uid: studentData.uid || null,
       state: state?.stateName || '',
       districtName: district?.districtName || '',
       schoolName: school?.name || '',
@@ -262,6 +315,14 @@ const UsersTab = () => {
       whatsappNumber: studentData.whatsappNumber || '',
       address: studentData.address || ''
     };
+    
+    console.log(`✅ Enriched ${studentData.name}:`, {
+      state: enrichedData.state,
+      district: enrichedData.districtName,
+      school: enrichedData.schoolName
+    });
+    
+    return enrichedData;
   };
 
   const fetchStates = async () => {
@@ -312,25 +373,35 @@ const UsersTab = () => {
     }
   };
 
-  const fetchStudents = async (stateFilter?: string, districtFilter?: string, schoolFilter?: string) => {
+  // Debug effect to track students state changes
+  useEffect(() => {
+    console.log('🔄 Students state changed:', {
+      count: students.length,
+      withUID: students.filter(s => s.uid && s.uid !== null && s.uid !== '').length,
+      withoutUID: students.filter(s => !s.uid || s.uid === null || s.uid === '').length,
+      sample: students.slice(0, 2).map(s => ({ name: s.name, uid: s.uid, hasUID: !!s.uid }))
+    });
+  }, [students]);
+
+  const fetchStudents = async () => {
     setIsFetching(true);
-    setIsDataEnriched(false);
     try {
-      let q = query(collection(db, 'students'), orderBy('name'));
-      
-      // Apply filters if provided
-      if (schoolFilter && schoolFilter !== 'all') {
-        q = query(collection(db, 'students'), where('schoolCode', '==', schoolFilter), orderBy('name'));
-      } else if (districtFilter && districtFilter !== 'all') {
-        q = query(collection(db, 'students'), where('districtCode', '==', districtFilter), orderBy('name'));
-      }
-      
+      const q = query(collection(db, 'students'), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
-      const studentsList: Student[] = [];
       
+      const studentsData: Student[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        const student = {
+        console.log('🔍 Student data structure:', {
+          id: doc.id,
+          name: data.name,
+          hasUID: !!data.uid,
+          uidValue: data.uid,
+          uidType: typeof data.uid,
+          allFields: Object.keys(data)
+        });
+        
+        studentsData.push({
           id: doc.id,
           name: data.name || '',
           studentId: data.studentId || '',
@@ -338,41 +409,39 @@ const UsersTab = () => {
           schoolCode: data.schoolCode || '',
           password: data.password || '',
           email: data.email || '',
-          state: '',
-          districtName: '',
-          schoolName: '',
+          uid: data.uid || null, // Explicitly handle undefined/null
+          state: data.state || '',
+          districtName: data.districtName || '',
+          schoolName: data.schoolName || '',
           class: data.class || '',
           gender: data.gender || '',
           age: data.age || undefined,
           parentDetails: data.parentDetails || '',
           whatsappNumber: data.whatsappNumber || '',
           address: data.address || ''
-        };
-        
-        // Apply state filter if needed (since we can't filter by state directly in Firestore)
-        if (stateFilter && stateFilter !== 'all') {
-          const school = schools.find(s => s.schoolCode === student.schoolCode);
-          if (school && school.state !== stateFilter) {
-            return; // Skip this student
-          }
-        }
-        
-        studentsList.push(student);
+        });
       });
       
-      // Enrich with related data if states and schools are already loaded
-      if (states.length > 0 && schools.length > 0) {
-        const enrichedStudents = studentsList.map(student => enrichSingleStudent(student));
-        setStudents(enrichedStudents);
-        setIsDataEnriched(true);
-      } else {
-      setStudents(studentsList);
-      }
+      console.log('📊 UID Analysis:', {
+        totalStudents: studentsData.length,
+        studentsWithUID: studentsData.filter(s => s.uid && s.uid !== null && s.uid !== '').length,
+        studentsWithoutUID: studentsData.filter(s => !s.uid || s.uid === null || s.uid === '').length,
+        sampleUIDs: studentsData.slice(0, 3).map(s => ({ name: s.name, uid: s.uid, hasUID: !!s.uid }))
+      });
+      
+      console.log('🔄 Setting students state with updated data...');
+      setStudents(studentsData);
+      
+      // Force a re-render after state update to ensure UI reflects correct UID counts
+      setTimeout(() => {
+        console.log('🔄 Forcing UI update after state change');
+        setStudents([...studentsData]);
+      }, 100);
     } catch (error) {
       console.error('Error fetching students:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch students",
+        description: "Failed to fetch students data",
         variant: "destructive"
       });
     } finally {
@@ -412,10 +481,13 @@ const UsersTab = () => {
     setFilteredStudents(filtered);
   };
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
-  const startIndex = (currentPage - 1) * studentsPerPage;
-  const endIndex = startIndex + studentsPerPage;
+  // Pagination logic - disable pagination when filters are applied (especially school filter)
+  const hasActiveFilters = filterState !== 'all' || filterDistrict !== 'all' || filterSchool !== 'all' || searchTerm.trim() !== '';
+  const shouldUsePagination = !hasActiveFilters; // No pagination when filters are active
+  
+  const totalPages = shouldUsePagination ? Math.ceil(filteredStudents.length / studentsPerPage) : 1;
+  const startIndex = shouldUsePagination ? (currentPage - 1) * studentsPerPage : 0;
+  const endIndex = shouldUsePagination ? startIndex + studentsPerPage : filteredStudents.length;
   const currentStudents = filteredStudents.slice(startIndex, endIndex);
 
   const handleViewStudent = (student: Student) => {
@@ -450,10 +522,10 @@ const UsersTab = () => {
   };
 
   const handleAddStudent = async () => {
-    if (!newStudent.name.trim() || !newStudent.state || !newStudent.districtCode || !newStudent.schoolCode) {
+    if (!newStudent.name.trim() || !newStudent.state || !newStudent.districtCode || !newStudent.schoolCode || !newStudent.class) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields (Name, State, District, School, Class)",
         variant: "destructive"
       });
       return;
@@ -480,6 +552,9 @@ const UsersTab = () => {
       const userEmail = newStudent.email.trim() || systemEmail;
 
       // Create Firebase Auth account
+      // Create Firebase Auth account using secondary app to avoid logging out admin
+      const secondaryApp = getSecondaryFirebaseApp();
+      const secondaryAuth = getAuth(secondaryApp);
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, userEmail, password);
       const firebaseUser = userCredential.user;
 
@@ -502,8 +577,9 @@ const UsersTab = () => {
         createdAt: new Date().toISOString()
       });
 
-      // Sign out from secondary auth
+      // Sign out from secondary auth to prevent admin logout
       await secondaryAuth.signOut();
+      console.log('✅ Student created successfully - Admin session preserved');
 
       const newStudentData: Student = {
         id: docRef.id,
@@ -634,21 +710,67 @@ const UsersTab = () => {
   };
 
   const handleDeleteStudent = async (student: Student) => {
-    if (!confirm(`Are you sure you want to delete ${student.name}? This action cannot be undone.`)) {
+    if (!canDelete) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to delete students. Only the main administrator can perform delete operations.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${student.name}? This action will remove them from both the database and authentication system. This cannot be undone.`)) {
       return;
     }
 
     setIsLoading(true);
     try {
+      console.log(`🗑️ Deleting student: ${student.name} (ID: ${student.studentId})`);
+      
+      // First, delete from Firestore
       await deleteDoc(doc(db, 'students', student.id));
+      console.log(`✅ Deleted Firestore document for ${student.name}`);
+      
+             // Then, attempt to automatically delete from Firebase Auth
+       console.log(`🔍 Deletion check for ${student.name}:`, {
+         uid: student.uid,
+         email: student.email,
+         password: student.password ? '***' : 'MISSING',
+         hasUID: !!student.uid,
+         hasEmail: !!student.email,
+         hasPassword: !!student.password
+       });
+       
+       if (student.uid && student.email && student.password) {
+         console.log(`🔄 Attempting automatic Firebase Auth deletion for ${student.name}...`);
+         const authDeleted = await deleteFirebaseAuthUser(student.uid, student.name, student.email, student.password);
+         
+         if (authDeleted) {
+           toast({
+             title: "✅ Student Completely Deleted",
+             description: `${student.name} has been automatically removed from both database and authentication system.`,
+           });
+         } else {
+           toast({
+             title: "⚠️ Partial Deletion Complete",
+             description: `${student.name} deleted from database. Firebase Auth user deletion failed - may need manual cleanup.`,
+             variant: "default"
+           });
+         }
+       } else {
+         console.log(`⚠️ Missing data for automatic auth deletion: UID=${!!student.uid}, Email=${!!student.email}, Password=${!!student.password}`);
+         toast({
+           title: "Student Deleted from Database",
+           description: `${student.name} deleted from database. Firebase Auth cleanup not possible due to missing credentials.`,
+           variant: "default"
+         });
+       }
+      
+      // Update local state
       setStudents(prev => prev.filter(s => s.id !== student.id));
       
-      toast({
-        title: "Student Deleted",
-        description: `${student.name} has been deleted successfully`,
-      });
     } catch (error) {
-      console.error('Error deleting student:', error);
+      console.error('❌ Error deleting student:', error);
       toast({
         title: "Error",
         description: "Failed to delete student. Please try again.",
@@ -660,6 +782,15 @@ const UsersTab = () => {
   };
 
   const handleBulkDelete = async () => {
+    if (!canDelete) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to delete students. Only the main administrator can perform delete operations.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (selectedStudents.length === 0) {
       toast({
         title: "No Selection",
@@ -671,22 +802,73 @@ const UsersTab = () => {
 
     setIsLoading(true);
     try {
-      // Delete all selected students
-      const deletePromises = selectedStudents.map(studentId => 
+      console.log(`🗑️ Bulk deleting ${selectedStudents.length} students`);
+      
+      // Get student data for the selected students to access their UIDs
+      const studentsToDelete = students.filter(s => selectedStudents.includes(s.id));
+      
+      // Delete all selected students from Firestore
+      const firestoreDeletePromises = selectedStudents.map(studentId => 
         deleteDoc(doc(db, 'students', studentId))
       );
       
-      await Promise.all(deletePromises);
+      await Promise.all(firestoreDeletePromises);
+      console.log(`✅ Deleted ${selectedStudents.length} students from Firestore`);
+      
+             // Attempt to automatically delete Firebase Auth users
+       let authDeletionSuccess = 0;
+       let authDeletionFailures = 0;
+       
+       for (const student of studentsToDelete) {
+         if (student.uid && student.email && student.password) {
+           try {
+             console.log(`🔄 Attempting automatic Firebase Auth deletion for ${student.name}...`);
+             const authDeleted = await deleteFirebaseAuthUser(student.uid, student.name, student.email, student.password);
+             
+             if (authDeleted) {
+               authDeletionSuccess++;
+               console.log(`✅ Firebase Auth user deleted for ${student.name}`);
+             } else {
+               authDeletionFailures++;
+               console.log(`❌ Firebase Auth user deletion failed for ${student.name}`);
+             }
+           } catch (authError) {
+             authDeletionFailures++;
+             console.error(`❌ Error deleting Firebase Auth user for ${student.name}:`, authError);
+           }
+         } else {
+           authDeletionFailures++;
+           console.log(`⚠️ Missing credentials for automatic auth deletion of ${student.name}`);
+         }
+       }
       
       // Update local state
       setStudents(prev => prev.filter(s => !selectedStudents.includes(s.id)));
       setSelectedStudents([]);
       setIsBulkDeleteModalOpen(false);
       
-      toast({
-        title: "Bulk Delete Successful",
-        description: `${selectedStudents.length} students deleted successfully`,
-      });
+      // Show comprehensive results
+      if (authDeletionSuccess > 0 && authDeletionFailures === 0) {
+        toast({
+          title: "✅ Complete Bulk Deletion Successful",
+          description: `${selectedStudents.length} students completely removed from both database and authentication system.`,
+        });
+      } else if (authDeletionSuccess > 0 && authDeletionFailures > 0) {
+        toast({
+          title: "⚠️ Partial Bulk Deletion Complete",
+          description: `${selectedStudents.length} students deleted from database. ${authDeletionSuccess} auth users deleted automatically, ${authDeletionFailures} may need manual cleanup.`,
+        });
+      } else if (authDeletionFailures > 0) {
+        toast({
+          title: "📊 Database Deletion Complete",
+          description: `${selectedStudents.length} students deleted from database. Firebase Auth users may need manual cleanup due to missing credentials.`,
+        });
+      } else {
+        toast({
+          title: "Bulk Delete Successful",
+          description: `${selectedStudents.length} students deleted successfully`,
+        });
+      }
     } catch (error) {
       console.error('Error deleting students:', error);
       toast({
@@ -743,20 +925,26 @@ const UsersTab = () => {
     const enrichedExportData = filteredStudents.map(student => {
       const enrichedStudent = enrichSingleStudent(student);
       return {
+        // Basic Information
         'Student Name': enrichedStudent.name,
         'Student ID': enrichedStudent.studentId,
+        'Gender': enrichedStudent.gender === 'M' ? 'Male' : enrichedStudent.gender === 'F' ? 'Female' : enrichedStudent.gender || '',
         'Age': enrichedStudent.age || '',
-        'Class': enrichedStudent.class || '',
-        'Gender': enrichedStudent.gender === 'M' ? 'Male' : enrichedStudent.gender === 'F' ? 'Female' : '',
-        'Parent Details': enrichedStudent.parentDetails || '',
-        'WhatsApp Number': enrichedStudent.whatsappNumber || '',
         'Email': enrichedStudent.email || '',
+        'WhatsApp Number': enrichedStudent.whatsappNumber || '',
         'Address': enrichedStudent.address || '',
+        'Parent Details': enrichedStudent.parentDetails || '',
+        'Password': enrichedStudent.password || '',
+        
+        // School Information
         'State': enrichedStudent.state || 'Unknown',
         'District': enrichedStudent.districtName || 'Unknown',
         'District Code': enrichedStudent.districtCode,
         'School': enrichedStudent.schoolName || 'Unknown',
         'School Code': enrichedStudent.schoolCode,
+        'Class': enrichedStudent.class || '',
+        
+        // Export Metadata
         'Export Date': new Date().toLocaleDateString(),
         'Export Time': new Date().toLocaleTimeString()
       };
@@ -808,8 +996,229 @@ const UsersTab = () => {
     });
   };
 
+  // Function to automatically delete Firebase Auth user
+  const deleteFirebaseAuthUser = async (uid: string, studentName: string, studentEmail: string, studentPassword: string): Promise<boolean> => {
+    try {
+      console.log(`🔐 Attempting to automatically delete Firebase Auth user for ${studentName} (UID: ${uid})`);
+      
+      // Method 1: Try to delete using a secondary Firebase app with the user's credentials
+      try {
+        const secondaryApp = getSecondaryFirebaseApp();
+        const secondaryAuth = getAuth(secondaryApp);
+        
+        // Sign in as the user to be deleted (this gives us permission to delete that user)
+        console.log(`🔑 Signing in as user to enable deletion: ${studentEmail}`);
+        const userCredential = await signInWithEmailAndPassword(secondaryAuth, studentEmail, studentPassword);
+        
+        // Now delete the current user (which is the student we want to delete)
+        await deleteUser(userCredential.user);
+        console.log(`✅ Successfully deleted Firebase Auth user for ${studentName}`);
+        
+        return true;
+        
+      } catch (signInError: any) {
+        console.log(`❌ Method 1 failed (sign-in approach): ${signInError.message}`);
+        
+        // Method 2: Try direct deletion if we have the UID
+        try {
+          // This approach attempts to use Firebase Admin-like functionality
+          console.log(`🔄 Trying alternative deletion method for ${studentName}`);
+          
+          // Create a special request to delete the user
+          // Note: This is a workaround that may work depending on Firebase configuration
+          const deleteResponse = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${import.meta.env.VITE_FIREBASE_API_KEY}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              localId: uid
+            })
+          });
+          
+          if (deleteResponse.ok) {
+            console.log(`✅ Successfully deleted Firebase Auth user via API for ${studentName}`);
+            return true;
+          } else {
+            const errorData = await deleteResponse.json();
+            console.log(`❌ API deletion failed:`, errorData);
+          }
+          
+        } catch (apiError: any) {
+          console.log(`❌ Method 2 failed (API approach): ${apiError.message}`);
+        }
+      }
+      
+      // If all methods fail, return false
+      console.log(`⚠️ Could not automatically delete Firebase Auth user for ${studentName}. Manual cleanup may be needed.`);
+      return false;
+      
+    } catch (error: any) {
+      console.error(`❌ Error in automatic auth user deletion for ${studentName}:`, error);
+      return false;
+    }
+  };
+
+  // Function to update existing students with their Firebase Auth UIDs
+  const updateStudentsWithUIDs = async () => {
+    if (!canDelete) {
+      toast({
+        title: "Permission Denied",
+        description: "Only the main administrator can perform this operation.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const studentsWithoutUID = students.filter(student => !student.uid || student.uid === null || student.uid === '');
+    
+    console.log('🔍 UID Update Debug:', {
+      totalStudents: students.length,
+      studentsWithoutUID: studentsWithoutUID.length,
+      sampleStudents: students.slice(0, 3).map(s => ({ 
+        name: s.name, 
+        uid: s.uid, 
+        hasUID: !!(s.uid && s.uid !== null && s.uid !== ''),
+        uidType: typeof s.uid
+      }))
+    });
+    
+    if (studentsWithoutUID.length === 0) {
+      toast({
+        title: "No Updates Needed",
+        description: "All students already have Firebase Auth UIDs stored.",
+      });
+      return;
+    }
+
+    if (!confirm(`Found ${studentsWithoutUID.length} students without Firebase Auth UIDs. Would you like to update them? This process will look up their UIDs from Firebase Auth using their email addresses.`)) {
+      return;
+    }
+
+    setIsLoading(true);
+    let updatedCount = 0;
+    let failedCount = 0;
+
+    try {
+      console.log(`🔄 Starting UID update process for ${studentsWithoutUID.length} students...`);
+
+      for (const student of studentsWithoutUID) {
+        try {
+          console.log(`🔍 Looking up Firebase Auth UID for ${student.name} (${student.email})`);
+          
+          // Create a secondary Firebase app to look up the user
+          const secondaryApp = getSecondaryFirebaseApp();
+          const secondaryAuth = getAuth(secondaryApp);
+          
+          try {
+            // Try to sign in with the student's credentials to get their UID
+            const userCredential = await signInWithEmailAndPassword(secondaryAuth, student.email, student.password);
+            const uid = userCredential.user.uid;
+            
+            // Sign out immediately to avoid session issues
+            await secondaryAuth.signOut();
+            
+            // Update the Firestore document with the UID
+            await updateDoc(doc(db, 'students', student.id), {
+              uid: uid
+            });
+            
+            // Update local state
+            setStudents(prev => prev.map(s => 
+              s.id === student.id ? { ...s, uid } : s
+            ));
+            
+            console.log(`✅ Updated ${student.name} with UID: ${uid}`);
+            updatedCount++;
+            
+          } catch (authError: any) {
+            console.error(`❌ Could not authenticate ${student.name}:`, authError.message);
+            
+            // Try alternative method - using Firebase Auth REST API to find user by email
+            try {
+              console.log(`🔄 Trying alternative lookup method for ${student.name}...`);
+              
+              const lookupResponse = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${import.meta.env.VITE_FIREBASE_API_KEY}`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  email: [student.email]
+                })
+              });
+              
+              if (lookupResponse.ok) {
+                const lookupData = await lookupResponse.json();
+                if (lookupData.users && lookupData.users.length > 0) {
+                  const uid = lookupData.users[0].localId;
+                  
+                  // Update the Firestore document
+                  await updateDoc(doc(db, 'students', student.id), {
+                    uid: uid
+                  });
+                  
+                  // Update local state
+                  setStudents(prev => prev.map(s => 
+                    s.id === student.id ? { ...s, uid } : s
+                  ));
+                  
+                  console.log(`✅ Updated ${student.name} with UID via API: ${uid}`);
+                  updatedCount++;
+                } else {
+                  console.log(`⚠️ No Firebase Auth user found for ${student.name} (${student.email})`);
+                  failedCount++;
+                }
+              } else {
+                console.log(`❌ API lookup failed for ${student.name}`);
+                failedCount++;
+              }
+            } catch (apiError: any) {
+              console.error(`❌ API lookup failed for ${student.name}:`, apiError.message);
+              failedCount++;
+            }
+          }
+        } catch (error: any) {
+          console.error(`❌ Error updating ${student.name}:`, error);
+          failedCount++;
+        }
+      }
+
+      // Show results
+      if (updatedCount > 0 && failedCount === 0) {
+        toast({
+          title: "✅ All Students Updated",
+          description: `Successfully updated ${updatedCount} students with their Firebase Auth UIDs. Automatic deletion will now work for all students.`,
+        });
+      } else if (updatedCount > 0 && failedCount > 0) {
+        toast({
+          title: "⚠️ Partial Update Complete",
+          description: `Updated ${updatedCount} students successfully. ${failedCount} students could not be updated (they may not exist in Firebase Auth).`,
+        });
+      } else {
+        toast({
+          title: "❌ Update Failed",
+          description: `Could not update any students. Please check that students exist in Firebase Authentication.`,
+          variant: "destructive"
+        });
+      }
+
+      console.log(`📊 UID update completed: ${updatedCount} successful, ${failedCount} failed`);
+
+    } catch (error) {
+      console.error('❌ Error in UID update process:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update student UIDs. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
@@ -820,6 +1229,14 @@ const UsersTab = () => {
           </div>
         </div>
         <div className="flex space-x-3">
+          <Button 
+            onClick={updateStudentsWithUIDs}
+            disabled={isLoading}
+            className="bg-orange-600 hover:bg-orange-700 text-white"
+          >
+            <Shield className="w-4 h-4 mr-2" />
+            {isLoading ? 'Updating...' : 'Fix Auth UIDs'}
+          </Button>
           <Button 
             onClick={() => setIsBulkUploadOpen(true)}
             className="bg-green-600 hover:bg-green-700 text-white"
@@ -921,14 +1338,29 @@ const UsersTab = () => {
           </Select>
 
           {/* Export Button */}
-          <Button 
-            onClick={handleExportStudents}
-            className="bg-orange-600 hover:bg-orange-700 text-white"
-            disabled={filteredStudents.length === 0}
-          >
-            <FileDown className="w-4 h-4 mr-2" />
-            Export ({filteredStudents.length})
-          </Button>
+                        <Button 
+                onClick={handleExportStudents}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+                disabled={filteredStudents.length === 0}
+              >
+                <FileDown className="w-4 h-4 mr-2" />
+                Export ({filteredStudents.length})
+              </Button>
+              
+              <Button 
+                onClick={() => {
+                  console.log('🔄 Manual enrichment triggered');
+                  setIsDataEnriched(false);
+                  setIsEnriching(false);
+                  enrichStudentData();
+                }}
+                variant="outline"
+                className="text-blue-600 hover:text-blue-700"
+                disabled={isEnriching}
+              >
+                                 <Upload className={`w-4 h-4 mr-2 ${isEnriching ? 'animate-spin' : ''}`} />
+                {isEnriching ? 'Enriching...' : 'Enrich Data'}
+              </Button>
       </div>
       </motion.div>
 
@@ -947,6 +1379,29 @@ const UsersTab = () => {
               <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">
                 {filteredStudents.length} students
               </span>
+              <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm font-medium">
+                {(() => {
+                  const withUID = students.filter(s => {
+                    const hasUID = s.uid && s.uid !== null && s.uid !== '';
+                    console.log(`🔍 UID Check - ${s.name}: uid="${s.uid}", hasUID=${hasUID}`);
+                    return hasUID;
+                  });
+                  console.log(`📊 Students with UID: ${withUID.length}/${students.length}`);
+                  return withUID.length;
+                })()} with Auth UIDs
+              </span>
+              {(() => {
+                const withoutUID = students.filter(s => {
+                  const missingUID = !s.uid || s.uid === null || s.uid === '';
+                  return missingUID;
+                });
+                console.log(`📊 Students without UID: ${withoutUID.length}/${students.length}`);
+                return withoutUID.length > 0 ? (
+                  <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-sm font-medium">
+                    {withoutUID.length} missing UIDs
+                  </span>
+                ) : null;
+              })()}
               {isEnriching && (
                 <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-sm font-medium animate-pulse">
                   Enriching data...
@@ -963,9 +1418,14 @@ const UsersTab = () => {
                 <Button
                   onClick={() => setIsBulkDeleteModalOpen(true)}
                   variant="outline"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  className={canDelete 
+                    ? "text-red-600 hover:text-red-700 hover:bg-red-50" 
+                    : "text-gray-400 cursor-not-allowed opacity-50"
+                  }
+                  disabled={!canDelete}
+                  title={canDelete ? "Delete selected students" : "Permission Denied - Only main admin can delete"}
                 >
-                  <Trash className="w-4 h-4 mr-2" />
+                  {canDelete ? <Trash className="w-4 h-4 mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
                   Delete Selected
                 </Button>
         </div>
@@ -1107,9 +1567,14 @@ const UsersTab = () => {
                         onClick={() => handleDeleteStudent(student)}
                         variant="outline"
                         size="sm"
-                        className="text-red-600 hover:text-red-700"
+                        className={canDelete 
+                          ? "text-red-600 hover:text-red-700" 
+                          : "text-gray-400 cursor-not-allowed opacity-50"
+                        }
+                        disabled={!canDelete}
+                        title={canDelete ? "Delete student" : "Permission Denied - Only main admin can delete"}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {canDelete ? <Trash2 className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
                       </Button>
                     </div>
                   </td>
@@ -1129,8 +1594,8 @@ const UsersTab = () => {
       )}
         </div>
 
-        {/* Pagination */}
-        {filteredStudents.length > 0 && (
+        {/* Pagination - only show when no filters are active */}
+        {filteredStudents.length > 0 && shouldUsePagination && (
           <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
             <div className="text-sm text-gray-700">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} students
@@ -1155,6 +1620,18 @@ const UsersTab = () => {
               >
                 Next
               </Button>
+            </div>
+          </div>
+        )}
+        
+        {/* Show total count when filters are active (no pagination) */}
+        {filteredStudents.length > 0 && !shouldUsePagination && (
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-700">
+              Showing all {filteredStudents.length} students (filters applied - pagination disabled)
+            </div>
+            <div className="text-sm text-blue-600 font-medium">
+              Ready for export
             </div>
           </div>
         )}
@@ -1610,11 +2087,11 @@ const UsersTab = () => {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Basic Information</h3>
                 <div className="grid grid-cols-2 gap-4">
-              <div>
-                    <p className="text-sm text-gray-600">Name</p>
+                  <div>
+                    <p className="text-sm text-gray-600">Student Name</p>
                     <p className="font-medium">{viewingStudent.name}</p>
-              </div>
-              <div>
+                  </div>
+                  <div>
                     <p className="text-sm text-gray-600">Student ID</p>
                     <div className="flex items-center">
                       <p className="font-mono text-sm flex-1">{viewingStudent.studentId}</p>
@@ -1622,16 +2099,12 @@ const UsersTab = () => {
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
-              </div>
-              <div>
-                    <p className="text-sm text-gray-600">Class</p>
-                    <p className="font-medium">{viewingStudent.class || '-'}</p>
-              </div>
-              <div>
+                  </div>
+                  <div>
                     <p className="text-sm text-gray-600">Gender</p>
-                    <p className="font-medium">{viewingStudent.gender === 'M' ? 'Male' : viewingStudent.gender === 'F' ? 'Female' : '-'}</p>
-              </div>
-              <div>
+                    <p className="font-medium">{viewingStudent.gender || '-'}</p>
+                  </div>
+                  <div>
                     <p className="text-sm text-gray-600">Age</p>
                     <p className="font-medium">{viewingStudent.age || '-'}</p>
                   </div>
@@ -1639,11 +2112,23 @@ const UsersTab = () => {
                     <p className="text-sm text-gray-600">Email</p>
                     <p className="text-sm break-all">{viewingStudent.email}</p>
                   </div>
+                  <div>
+                    <p className="text-sm text-gray-600">WhatsApp Number</p>
+                    <p className="font-medium">{viewingStudent.whatsappNumber || '-'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-sm text-gray-600">Address</p>
+                    <p className="font-medium">{viewingStudent.address || '-'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-sm text-gray-600">Parent Details</p>
+                    <p className="font-medium">{viewingStudent.parentDetails || '-'}</p>
+                  </div>
                   <div className="col-span-2">
                     <p className="text-sm text-gray-600">Password</p>
                     <div className="flex items-center">
                       <p className="font-mono text-sm flex-1">
-                        {visiblePasswords[viewingStudent.id] ? viewingStudent.password : '••••••••'}
+                        {visiblePasswords[viewingStudent.id] ? viewingStudent.password : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'}
                       </p>
                       <Button variant="ghost" size="sm" onClick={() => togglePasswordVisibility(viewingStudent.id)}>
                         {visiblePasswords[viewingStudent.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -1655,26 +2140,6 @@ const UsersTab = () => {
                   </div>
                 </div>
               </div>
-
-              {/* Contact Information */}
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Contact Information</h3>
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-600">Parent Details</p>
-                    <p className="font-medium">{viewingStudent.parentDetails || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">WhatsApp Number</p>
-                    <p className="font-medium">{viewingStudent.whatsappNumber || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Address</p>
-                    <p className="font-medium">{viewingStudent.address || '-'}</p>
-                  </div>
-                </div>
-              </div>
-
               {/* School Information */}
               <div className="bg-green-50 p-4 rounded-lg">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">School Information</h3>
@@ -1687,9 +2152,13 @@ const UsersTab = () => {
                     <p className="text-sm text-gray-600">District</p>
                     <p className="font-medium">{viewingStudent.districtName || '-'}</p>
                   </div>
-                  <div className="col-span-2">
+                  <div>
                     <p className="text-sm text-gray-600">School</p>
                     <p className="font-medium">{viewingStudent.schoolName || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Class</p>
+                    <p className="font-medium">{viewingStudent.class || '-'}</p>
                   </div>
                 </div>
               </div>

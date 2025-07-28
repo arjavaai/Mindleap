@@ -22,7 +22,8 @@ import {
   Download,
   FileText,
   Calendar,
-  Infinity
+  Infinity,
+  Shield
 } from 'lucide-react';
 import { 
   collection, 
@@ -36,6 +37,7 @@ import {
   orderBy 
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { useAdminPermissions } from './AdminContext';
 
 interface Quiz {
   id: string;
@@ -112,6 +114,7 @@ interface QuizStats {
 }
 
 const QuizManagementTab = () => {
+  const { canDelete } = useAdminPermissions();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [states, setStates] = useState<State[]>([]);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
@@ -348,6 +351,11 @@ const QuizManagementTab = () => {
   };
 
   const handleDeleteQuiz = async (quizId: string) => {
+    if (!canDelete) {
+      alert('Permission Denied: You don\'t have permission to delete quizzes. Only the main administrator can perform delete operations.');
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this quiz?')) return;
 
     try {
@@ -1107,10 +1115,14 @@ const QuizManagementTab = () => {
                         </button>
                         <button
                           onClick={() => handleDeleteQuiz(quiz.id)}
-                          className="text-red-600 hover:text-red-900 p-1"
-                          title="Delete"
+                          className={`${canDelete 
+                            ? 'text-red-600 hover:text-red-900' 
+                            : 'text-gray-400 cursor-not-allowed opacity-50'
+                          } p-1`}
+                          title={canDelete ? "Delete" : "Permission Denied - Only main admin can delete"}
+                          disabled={!canDelete}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {canDelete ? <Trash2 className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
                         </button>
                       </div>
                     </td>

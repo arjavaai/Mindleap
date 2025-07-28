@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Phone, User, Calendar, MessageSquare, Tag, Eye, Trash2, Filter } from 'lucide-react';
+import { Mail, Phone, User, Calendar, MessageSquare, Tag, Eye, Trash2, Filter, Shield } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { db } from '../../lib/firebase';
 import { collection, getDocs, deleteDoc, doc, updateDoc, orderBy, query } from 'firebase/firestore';
+import { useAdminPermissions } from './AdminContext';
 
 interface ContactQuery {
   id: string;
@@ -19,6 +20,7 @@ interface ContactQuery {
 }
 
 const ContactQueriesTab = () => {
+  const { canDelete } = useAdminPermissions();
   const [queries, setQueries] = useState<ContactQuery[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuery, setSelectedQuery] = useState<ContactQuery | null>(null);
@@ -58,6 +60,11 @@ const ContactQueriesTab = () => {
   };
 
   const deleteQuery = async (queryId: string) => {
+    if (!canDelete) {
+      alert('Permission Denied: You don\'t have permission to delete queries. Only the main administrator can perform delete operations.');
+      return;
+    }
+
     if (window.confirm('Are you sure you want to delete this query?')) {
       try {
         await deleteDoc(doc(db, 'contactQueries', queryId));
@@ -97,7 +104,7 @@ const ContactQueriesTab = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-deep-blue">Contact Queries</h2>
@@ -201,9 +208,14 @@ const ContactQueriesTab = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => deleteQuery(selectedQuery.id)}
-                    className="text-red-600 hover:text-red-700"
+                    className={canDelete 
+                      ? "text-red-600 hover:text-red-700" 
+                      : "text-gray-400 cursor-not-allowed opacity-50"
+                    }
+                    disabled={!canDelete}
+                    title={canDelete ? "Delete query" : "Permission Denied - Only main admin can delete"}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {canDelete ? <Trash2 className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
                   </Button>
                 </CardTitle>
               </CardHeader>

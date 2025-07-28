@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, Trophy, Flame, Brain, ArrowLeft, Zap, Star, Target, CheckCircle, XCircle, Play, Award, TrendingUp, Sparkles } from 'lucide-react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../lib/firebase';
-import { collection, doc, getDoc, setDoc, query, where, getDocs, orderBy, arrayUnion, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, query, where, getDocs, orderBy, arrayUnion, updateDoc, limit } from 'firebase/firestore';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import DailyQuestionModal from '../components/streak/DailyQuestionModal';
 import StreakCalendar from '../components/streak/StreakCalendar';
@@ -11,6 +11,8 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import StudentHeader from '../components/StudentHeader';
+import StudentAuthGuard from '../components/auth/StudentAuthGuard';
+import { isInCurrentWeek, formatTime, stripHtml } from '../utils/htmlUtils';
 interface DailyStreakRecord {
   questionId: string;
   subject: string;
@@ -132,30 +134,122 @@ const DailyStreak = () => {
     }
   };
 
-  // Get random question for today
-  const getRandomQuestionForToday = async (subjectId: string, answeredQuestionIds: string[]) => {
+  // Get scheduled question for today - same question for all students
+  const getScheduledQuestionForToday = async (subjectId: string, todayDateString: string) => {
     try {
-      const questionsSnapshot = await getDocs(collection(db, 'subjects', subjectId, 'questions'));
-      if (!questionsSnapshot.empty) {
-        // Filter out already answered questions
-        const availableQuestions = questionsSnapshot.docs.filter(doc => !answeredQuestionIds.includes(doc.id));
-        if (availableQuestions.length === 0) {
-          console.log('No more questions available for this subject');
-          return null;
+      // First, check if there's already a scheduled question for today
+      const dailyQuestionDoc = await getDoc(doc(db, 'dailyQuestions', todayDateString));
+      
+      if (dailyQuestionDoc.exists()) {
+        const dailyQuestionData = dailyQuestionDoc.data();
+        if (dailyQuestionData.subject === await getTodaySubject()?.then(s => s?.name)) {
+          // Get the actual question from the subjects collection
+          const questionDoc = await getDoc(doc(db, 'subjects', subjectId, 'questions', dailyQuestionData.questionId));
+          if (questionDoc.exists()) {
+            return {
+              id: questionDoc.id,
+              ...questionDoc.data()
+            } as Question;
+          }
         }
-
-        // Get random question from available ones
-        const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-        const selectedQuestion = availableQuestions[randomIndex];
-        return {
-          id: selectedQuestion.id,
-          ...selectedQuestion.data()
-        } as Question;
       }
+
+      // If no scheduled question exists, create one
+      await scheduleQuestionForToday(subjectId, todayDateString);
+      
+      // Fetch the newly scheduled question
+      const newDailyQuestionDoc = await getDoc(doc(db, 'dailyQuestions', todayDateString));
+      if (newDailyQuestionDoc.exists()) {
+        const dailyQuestionData = newDailyQuestionDoc.data();
+        const questionDoc = await getDoc(doc(db, 'subjects', subjectId, 'questions', dailyQuestionData.questionId));
+        if (questionDoc.exists()) {
+          return {
+            id: questionDoc.id,
+            ...questionDoc.data()
+          } as Question;
+        }
+      }
+
       return null;
     } catch (error) {
-      console.error('Error getting random question:', error);
+      console.error('Error getting scheduled question:', error);
       return null;
+    }
+  };
+
+  // Schedule a question for today - this ensures all students get the same question
+  const scheduleQuestionForToday = async (subjectId: string, dateString: string) => {
+    try {
+      const todaySubject = await getTodaySubject();
+      if (!todaySubject) return;
+
+      // Get all questions for this subject
+      const questionsSnapshot = await getDocs(collection(db, 'subjects', subjectId, 'questions'));
+      if (questionsSnapshot.empty) {
+        console.log('No questions available for this subject');
+        return;
+      }
+
+      // Get previously used questions to avoid immediate repeats
+      const recentQuestions = await getRecentlyUsedQuestions(subjectId, 30); // Last 30 days
+
+      // Filter out recently used questions
+      const availableQuestions = questionsSnapshot.docs.filter(doc => 
+        !recentQuestions.includes(doc.id)
+      );
+
+      // If no unused questions, use all questions (reset cycle)
+      const questionsToChooseFrom = availableQuestions.length > 0 ? availableQuestions : questionsSnapshot.docs;
+
+      // Select a random question from available ones
+      const randomIndex = Math.floor(Math.random() * questionsToChooseFrom.length);
+      const selectedQuestion = questionsToChooseFrom[randomIndex];
+
+      // Save the scheduled question for today
+      await setDoc(doc(db, 'dailyQuestions', dateString), {
+        date: dateString,
+        questionId: selectedQuestion.id,
+        subject: todaySubject.name,
+        subjectId: subjectId,
+        scheduledDay: todaySubject.scheduledDay,
+        createdAt: new Date(),
+        totalAttempts: 0,
+        correctAttempts: 0
+      });
+
+      console.log(`Scheduled question ${selectedQuestion.id} for ${dateString}`);
+    } catch (error) {
+      console.error('Error scheduling question:', error);
+    }
+  };
+
+  // Get recently used question IDs to avoid repeats
+  const getRecentlyUsedQuestions = async (subjectId: string, days: number): Promise<string[]> => {
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      const recentQuestions: string[] = [];
+      
+      // Query recent daily questions
+      const dailyQuestionsQuery = query(
+        collection(db, 'dailyQuestions'),
+        where('subjectId', '==', subjectId),
+        orderBy('date', 'desc'),
+        limit(days)
+      );
+
+      const dailyQuestionsSnapshot = await getDocs(dailyQuestionsQuery);
+      dailyQuestionsSnapshot.forEach(doc => {
+        const data = doc.data();
+        recentQuestions.push(data.questionId);
+      });
+
+      return recentQuestions;
+    } catch (error) {
+      console.error('Error getting recently used questions:', error);
+      return [];
     }
   };
   useEffect(() => {
@@ -192,11 +286,38 @@ const DailyStreak = () => {
       setIsLoading(false);
     }
   };
+  // Get question for a specific date (used for missed questions)
+  const getQuestionForDate = async (subjectId: string, dateString: string) => {
+    try {
+      const questionsSnapshot = await getDocs(collection(db, 'subjects', subjectId, 'questions'));
+      if (!questionsSnapshot.empty) {
+        const questions = questionsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        if (questions.length === 0) {
+          console.log('No questions available for this subject');
+          return null;
+        }
+
+        // Use date as seed for consistent question selection for that date
+        const dateHash = dateString.split('-').join('');
+        const questionIndex = parseInt(dateHash) % questions.length;
+        
+        return questions[questionIndex] as Question;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting question for date:', error);
+      return null;
+    }
+  };
+
   const loadTodayQuestion = async () => {
     const todaySubject = await getTodaySubject();
     if (!todaySubject) return;
-    const answeredQuestions = await getUserAnsweredQuestions();
-    const question = await getRandomQuestionForToday(todaySubject.id, answeredQuestions);
+    const question = await getScheduledQuestionForToday(todaySubject.id, todayString);
     if (question) {
       setTodayQuestion({
         ...question,
@@ -214,23 +335,44 @@ const DailyStreak = () => {
         setCurrentStreak(streakData.currentStreak || 0);
         setTotalPoints(streakData.totalPoints || 0);
 
-        // Calculate current streak
+        // Calculate current streak with new weekday-only logic
         const records = streakData.records || {};
         let streak = 0;
         let currentDate = new Date();
+        let consecutiveMissedWeekdays = 0;
+        
         while (true) {
           const dateString = format(currentDate, 'yyyy-MM-dd');
+          const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+          const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
           const record = records[dateString];
-          if (record && record.isCorrect) {
-            streak++;
-            currentDate.setDate(currentDate.getDate() - 1);
-          } else if (dateString === todayString && record) {
-            // Today's record exists but might not be correct
-            break;
-          } else {
-            break;
+          
+          if (isWeekday) {
+            // Only count weekdays for streak calculation
+            if (record) {
+              // Student attempted on this weekday - increment streak regardless of correctness
+              streak++;
+              consecutiveMissedWeekdays = 0;
+            } else {
+              // Student missed this weekday - check if it's recent enough to break streak
+              const daysDifference = Math.floor((new Date().getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+              if (daysDifference > 0) { // Don't count today if not attempted yet
+                consecutiveMissedWeekdays++;
+                if (consecutiveMissedWeekdays >= 1) { // Break streak on first missed weekday
+                  break;
+                }
+              }
+            }
           }
+          // Skip weekends (Saturday/Sunday) - they don't affect streak
+          
+          currentDate.setDate(currentDate.getDate() - 1);
+          
+          // Prevent infinite loop - stop after checking 60 days back
+          const totalDaysBack = Math.floor((new Date().getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (totalDaysBack > 60) break;
         }
+        
         setCurrentStreak(streak);
 
         // Calculate total points
@@ -247,12 +389,29 @@ const DailyStreak = () => {
     setQuestionStartTime(new Date());
     setShowQuestionModal(true);
   };
-  const handleAnswerSubmit = async (selectedOption: string) => {
+  const handleAnswerSubmit = async (selectedOption: string, questionDate?: string) => {
     if (!todayQuestion || !user || !questionStartTime) return;
+    
     const endTime = new Date();
     const timeTaken = Math.floor((endTime.getTime() - questionStartTime.getTime()) / 1000);
     const isCorrect = selectedOption === todayQuestion.correctOption;
-    const points = isCorrect ? 200 : 100;
+    
+    // Determine target date and week context
+    const targetDate = questionDate || todayString;
+    const targetDateObj = new Date(targetDate);
+    const isCurrentDay = targetDate === todayString;
+    const isCurrentWeek = isInCurrentWeek(targetDateObj);
+    
+    // Points logic based on timing
+    let points = 0;
+    if (isCurrentDay) {
+      points = isCorrect ? 200 : 100; // Full points for current day
+    } else if (isCurrentWeek) {
+      points = 100; // Fixed 100 points for missed questions in same week (regardless of correct/wrong)
+    } else {
+      points = 0; // No points for past weeks
+    }
+    
     const record: DailyStreakRecord = {
       questionId: todayQuestion.id,
       subject: todayQuestion.subject,
@@ -260,31 +419,117 @@ const DailyStreak = () => {
       correctOption: todayQuestion.correctOption,
       isCorrect,
       timeTaken,
-      timestamp: new Date(),
+      timestamp: new Date(), // Always use current timestamp for when answered
       explanation: todayQuestion.explanation,
       status: isCorrect ? 'correct' : 'wrong',
       points
     };
+    
     try {
+      // Calculate new streak only for current day questions
+      let newStreak = currentStreak;
+      if (isCurrentDay) {
+        const dayOfWeek = today.getDay();
+        const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+        if (isWeekday) {
+          newStreak = currentStreak + 1; // Increment on any attempt during weekdays
+        }
+      }
+      
       await setDoc(doc(db, 'dailyStreaks', user.uid), {
         records: {
-          [todayString]: record
+          [targetDate]: record
         },
-        currentStreak: isCorrect ? currentStreak + 1 : 0,
+        currentStreak: newStreak,
         totalPoints: totalPoints + points,
         lastUpdated: new Date()
       }, {
         merge: true
       });
-      setTodayRecord(record);
-      setCurrentStreak(isCorrect ? currentStreak + 1 : 0);
+
+      // Update daily question statistics only for current day
+      if (isCurrentDay) {
+        const dailyQuestionRef = doc(db, 'dailyQuestions', todayString);
+        const dailyQuestionDoc = await getDoc(dailyQuestionRef);
+        if (dailyQuestionDoc.exists()) {
+          const data = dailyQuestionDoc.data();
+          await updateDoc(dailyQuestionRef, {
+            totalAttempts: (data.totalAttempts || 0) + 1,
+            correctAttempts: (data.correctAttempts || 0) + (isCorrect ? 1 : 0)
+          });
+        }
+      }
+
+      // Update local state
+      if (isCurrentDay) {
+        setTodayRecord(record);
+        setCurrentStreak(newStreak);
+      }
+      
       setTotalPoints(prev => prev + points);
+      
+      // Update streak records for calendar
+      setStreakRecords(prev => ({
+        ...prev,
+        [targetDate]: record
+      }));
     } catch (error) {
       console.error('Error saving answer:', error);
     }
   };
   const handleCloseModal = () => {
     setShowQuestionModal(false);
+  };
+
+  const handleDateClick = async (dateString: string) => {
+    try {
+      // Check if this date is in the current week and is a past date
+      const clickedDate = new Date(dateString);
+      const isCurrentWeek = isInCurrentWeek(clickedDate);
+      const isPastDate = clickedDate < today;
+      
+      if (!isCurrentWeek || !isPastDate) {
+        return; // Only allow clicking on past dates in current week
+      }
+
+      // Check if there's already a record for this date
+      if (streakRecords[dateString]) {
+        return; // Already answered
+      }
+
+      // Get the subject for that day
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayName = dayNames[clickedDate.getDay()];
+      
+      const subjectsQuery = query(collection(db, 'subjects'), where('scheduledDay', '==', dayName));
+      const subjectsSnapshot = await getDocs(subjectsQuery);
+      
+      if (subjectsSnapshot.empty) {
+        console.log('No subject scheduled for', dayName);
+        return;
+      }
+
+      const subjectDoc = subjectsSnapshot.docs[0];
+      const subject = {
+        id: subjectDoc.id,
+        name: subjectDoc.data().name,
+        scheduledDay: subjectDoc.data().scheduledDay
+      };
+
+      // Get the scheduled question for that date
+      const question = await getQuestionForDate(subject.id, dateString);
+      
+      if (question) {
+        setTodayQuestion({
+          ...question,
+          subject: subject.name
+        });
+        setQuestionStartTime(new Date());
+        setShowQuestionModal(true);
+      }
+    } catch (error) {
+      console.error('Error handling date click:', error);
+    }
   };
   const getStreakMessage = () => {
     if (currentStreak === 0) return "Start Your Streak Today!";
@@ -373,7 +618,8 @@ const DailyStreak = () => {
         </motion.div>
       </div>;
   }
-  return <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
+  return <StudentAuthGuard>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
       {/* Floating Particles Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {particles.map(particle => <motion.div key={particle.id} className="absolute w-2 h-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full opacity-20" style={{
@@ -549,7 +795,10 @@ const DailyStreak = () => {
             </div>
 
             <div className="p-8">
-              <StreakCalendar records={streakRecords} />
+              <StreakCalendar 
+                records={streakRecords} 
+                onDateClick={handleDateClick}
+              />
             </div>
           </motion.div>
         </div>
@@ -565,7 +814,13 @@ const DailyStreak = () => {
       </motion.div>
 
       {/* Question Modal */}
-      <DailyQuestionModal isOpen={showQuestionModal} onClose={handleCloseModal} question={todayQuestion!} onSubmit={handleAnswerSubmit} />
-    </div>;
+      <DailyQuestionModal 
+        isOpen={showQuestionModal} 
+        onClose={handleCloseModal} 
+        question={todayQuestion!} 
+        onSubmit={(selectedOption) => handleAnswerSubmit(selectedOption)}
+      />
+    </div>
+  </StudentAuthGuard>;
 };
 export default DailyStreak;

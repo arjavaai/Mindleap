@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Plus, Edit, Trash2, Eye, Clock, Users, School, MapPin, Globe, Video, Calendar, CheckCircle, XCircle, ArrowRight, ArrowLeft, ExternalLink, BarChart3, Download, Play, Pause, User
+  Plus, Edit, Trash2, Eye, Clock, Users, School, MapPin, Globe, Video, Calendar, CheckCircle, XCircle, ArrowRight, ArrowLeft, ExternalLink, BarChart3, Download, Play, Pause, User, Shield
 } from 'lucide-react';
 import { 
   collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy 
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { useAdminPermissions } from './AdminContext';
 
 interface Workshop {
   id: string;
@@ -59,6 +60,7 @@ interface School {
 }
 
 const WorkshopManagementTab = () => {
+  const { canDelete } = useAdminPermissions();
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
   const [states, setStates] = useState<State[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -226,6 +228,11 @@ const WorkshopManagementTab = () => {
   };
 
   const handleDeleteWorkshop = async (workshopId: string) => {
+    if (!canDelete) {
+      alert('Permission Denied: You don\'t have permission to delete workshops. Only the main administrator can perform delete operations.');
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this workshop?')) return;
     setSubmitting(true);
     try {
@@ -405,11 +412,14 @@ const WorkshopManagementTab = () => {
                     </button>
                     <button
                       onClick={() => handleDeleteWorkshop(workshop.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete"
-                      disabled={submitting}
+                      className={`p-2 ${canDelete 
+                        ? 'text-red-600 hover:bg-red-50' 
+                        : 'text-gray-400 cursor-not-allowed opacity-50'
+                      } rounded-lg transition-colors`}
+                      title={canDelete ? "Delete" : "Permission Denied - Only main admin can delete"}
+                      disabled={submitting || !canDelete}
                     >
-                      <Trash2 className="w-5 h-5" />
+                      {canDelete ? <Trash2 className="w-5 h-5" /> : <Shield className="w-5 h-5" />}
                     </button>
                   </div>
                 </div>

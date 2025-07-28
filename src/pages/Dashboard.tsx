@@ -33,6 +33,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 // New unified header
 import StudentHeader from '../components/StudentHeader';
 import { useStudentData } from '../hooks/useStudentData';
+import StudentAuthGuard from '../components/auth/StudentAuthGuard';
 
 interface StudentData {
   streakCount: number;
@@ -350,308 +351,308 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-      {/* Floating Particles Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {particles.map((particle) => (
-          <motion.div
-            key={particle.id}
-            className="absolute w-2 h-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full opacity-20"
-            style={{
-              left: `${particle.x}%`,
-              top: `${particle.y}%`,
-            }}
-            animate={{
-              y: [0, -100, 0],
-              opacity: [0.2, 0.5, 0.2],
-              scale: [1, 1.5, 1]
-            }}
-            transition={{
-              duration: particle.duration,
-              delay: particle.delay,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-        ))}
-      </div>
+    <StudentAuthGuard>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 relative overflow-hidden">
+        {/* Floating Particles Background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {particles.map((particle) => (
+            <motion.div
+              key={particle.id}
+              className="absolute w-2 h-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full opacity-20"
+              style={{
+                left: `${particle.x}%`,
+                top: `${particle.y}%`,
+              }}
+              animate={{
+                y: [0, -100, 0],
+                opacity: [0.2, 0.5, 0.2],
+                scale: [1, 1.5, 1]
+              }}
+              transition={{
+                duration: particle.duration,
+                delay: particle.delay,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
+          ))}
+        </div>
 
-      {/* Sticky Header */}
-      <StudentHeader 
-        showBackButton={false} 
-        totalPoints={studentData.totalPoints} 
-        currentStreak={studentData.streakCount}
-        studentId={user?.uid}
-      />
+        {/* Sticky Header */}
+        <StudentHeader 
+          showBackButton={false} 
+          totalPoints={studentData.totalPoints} 
+          currentStreak={studentData.streakCount}
+          studentId={user?.uid}
+        />
 
-      {/* Main Content */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="container mx-auto px-4 py-8"
-      >
-        {/* Welcome Hero Section */}
+        {/* Main Content */}
         <motion.div
-          variants={itemVariants}
-          className="mb-12"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="container mx-auto px-4 py-8"
         >
-          {/* Shield Progress Bar */}
+          {/* Welcome Hero Section */}
           <motion.div
             variants={itemVariants}
-            className="mb-6"
+            className="mb-12"
           >
-            <ShieldProgressBar currentPoints={totalPoints} />
+            {/* Shield Progress Bar */}
+            <motion.div
+              variants={itemVariants}
+              className="mb-6"
+            >
+              <ShieldProgressBar currentPoints={totalPoints} />
+            </motion.div>
           </motion.div>
-        </motion.div>
 
-        {/* Quick Action Cards */}
-        <motion.div
-          variants={itemVariants}
-          className="grid md:grid-cols-3 lg:grid-cols-3 gap-6"
-        >
-          {/* Daily Streak Card */}
+          {/* Quick Action Cards */}
           <motion.div
-            className="group cursor-pointer"
-            onClick={() => handleCardClick('/streak')}
-            whileHover={{ 
-              scale: 1.02,
-              y: -5,
-              boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
-            }}
-            whileTap={{ scale: 0.98 }}
+            variants={itemVariants}
+            className="grid md:grid-cols-3 lg:grid-cols-3 gap-6"
           >
-            <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl p-6 text-white shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-bold mb-2">🔥 Daily Streak</h3>
-                  <p className="text-purple-100">Challenge your mind today</p>
-                </div>
-                <motion.div
-                  animate={{
-                    scale: [1, 1.1, 1],
-                    rotate: [0, 10, -10, 0]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Flame className="w-12 h-12" />
-                </motion.div>
-              </div>
-              <motion.div
-                className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
-                animate={{
-                  x: [0, 5, 0]
-                }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <span>Start Challenge</span>
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </motion.div>
-            </div>
-          </motion.div>
-
-          {/* Quizzes Card */}
-              <motion.div
-            className="group cursor-pointer"
-            onClick={() => handleCardClick('/quiz')}
-            whileHover={{ 
-              scale: 1.02,
-              y: -5,
-              boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
-            }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-3xl p-6 text-white shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-bold mb-2">📚 Quizzes</h3>
-                  <p className="text-green-100">Test your knowledge</p>
-                </div>
-                <motion.div
-                  animate={{ 
-                    scale: [1, 1.1, 1]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <BookOpen className="w-12 h-12" />
-                </motion.div>
-              </div>
-              <motion.div
-                className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
-                animate={{
-                  x: [0, 5, 0]
-                }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <span>Take Quiz</span>
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </motion.div>
-            </div>
-          </motion.div>
-
-          {/* Webinars Card */}
-          <motion.div
-            className="group cursor-pointer"
-            onClick={() => handleCardClick('/webinars')}
-            whileHover={{ 
-              scale: 1.02,
-              y: -5,
-              boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
-            }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-3xl p-6 text-white shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-bold mb-2">🎥 Live Webinars</h3>
-                  <p className="text-blue-100">Join interactive sessions</p>
-                </div>
-                <motion.div
-                  animate={{ 
-                    scale: [1, 1.1, 1]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Play className="w-12 h-12" />
-                </motion.div>
-              </div>
-              <motion.div
-                className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
-                animate={{
-                  x: [0, 5, 0]
-                }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <span>Join Session</span>
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </motion.div>
-            </div>
-          </motion.div>
-
-          {/* Workshops Card */}
-          <motion.div
-            className="group cursor-pointer"
-            onClick={() => handleCardClick('/workshops')}
-            whileHover={{ 
-              scale: 1.02,
-              y: -5,
-              boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
-            }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-3xl p-6 text-white shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-bold mb-2">🛠️ Workshops</h3>
-                  <p className="text-orange-100">Hands-on learning</p>
-                </div>
-                <motion.div
-                  animate={{ 
-                    scale: [1, 1.1, 1],
-                    rotate: [0, 10, -10, 0]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Timer className="w-12 h-12" />
-                </motion.div>
-              </div>
-              <motion.div
-                className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
-                animate={{
-                  x: [0, 5, 0]
-                }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <span>Join Workshop</span>
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </motion.div>
-          </div>
-        </motion.div>
-
-          {/* Leaderboard Card */}
+            {/* Daily Streak Card */}
             <motion.div
               className="group cursor-pointer"
-            onClick={() => navigate('/leaderboard')}
+              onClick={() => handleCardClick('/streak')}
               whileHover={{ 
-              scale: 1.02,
-              y: -5,
-              boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
-            }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="bg-gradient-to-r from-yellow-500 to-amber-500 rounded-3xl p-6 text-white shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-bold mb-2">🏆 Leaderboard</h3>
-                  <p className="text-yellow-100">See top performers</p>
+                scale: 1.02,
+                y: -5,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+              }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl p-6 text-white shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold mb-2">🔥 Daily Streak</h3>
+                    <p className="text-purple-100">Challenge your mind today</p>
+                  </div>
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.1, 1],
+                      rotate: [0, 10, -10, 0]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Flame className="w-12 h-12" />
+                  </motion.div>
                 </div>
                 <motion.div
+                  className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
                   animate={{
-                    scale: [1, 1.1, 1],
-                    rotate: [0, 5, -5, 0]
+                    x: [0, 5, 0]
                   }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <Trophy className="w-12 h-12" />
+                  <span>Start Challenge</span>
+                  <ArrowRight className="w-5 h-5 ml-2" />
                 </motion.div>
               </div>
+            </motion.div>
+
+            {/* Quizzes Card */}
+                <motion.div
+              className="group cursor-pointer"
+              onClick={() => handleCardClick('/quiz')}
+              whileHover={{ 
+                scale: 1.02,
+                y: -5,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+              }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-3xl p-6 text-white shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold mb-2">📚 Quizzes</h3>
+                    <p className="text-green-100">Test your knowledge</p>
+                  </div>
+                  <motion.div
+                    animate={{ 
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <BookOpen className="w-12 h-12" />
+                  </motion.div>
+                </div>
+                <motion.div
+                  className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
+                  animate={{
+                    x: [0, 5, 0]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <span>Take Quiz</span>
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </motion.div>
+              </div>
+            </motion.div>
+
+            {/* Webinars Card */}
+            <motion.div
+              className="group cursor-pointer"
+              onClick={() => handleCardClick('/webinars')}
+              whileHover={{ 
+                scale: 1.02,
+                y: -5,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+              }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-3xl p-6 text-white shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold mb-2">🎥 Live Webinars</h3>
+                    <p className="text-blue-100">Join interactive sessions</p>
+                  </div>
+                  <motion.div
+                    animate={{ 
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Play className="w-12 h-12" />
+                  </motion.div>
+                </div>
+                <motion.div
+                  className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
+                  animate={{
+                    x: [0, 5, 0]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <span>Join Session</span>
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </motion.div>
+              </div>
+            </motion.div>
+
+            {/* Workshops Card */}
+            <motion.div
+              className="group cursor-pointer"
+              onClick={() => handleCardClick('/workshops')}
+              whileHover={{ 
+                scale: 1.02,
+                y: -5,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+              }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-3xl p-6 text-white shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold mb-2">🛠️ Workshops</h3>
+                    <p className="text-orange-100">Hands-on learning</p>
+                  </div>
+                  <motion.div
+                    animate={{ 
+                      scale: [1, 1.1, 1],
+                      rotate: [0, 10, -10, 0]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Timer className="w-12 h-12" />
+                  </motion.div>
+                </div>
+                <motion.div
+                  className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
+                  animate={{
+                    x: [0, 5, 0]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <span>Join Workshop</span>
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </motion.div>
+            </div>
+          </motion.div>
+
+            {/* Leaderboard Card */}
               <motion.div
-                className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
+                className="group cursor-pointer"
+              onClick={() => navigate('/leaderboard')}
+                whileHover={{ 
+                scale: 1.02,
+                y: -5,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+              }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="bg-gradient-to-r from-yellow-500 to-amber-500 rounded-3xl p-6 text-white shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold mb-2">🏆 Leaderboard</h3>
+                    <p className="text-yellow-100">See top performers</p>
+                  </div>
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.1, 1],
+                      rotate: [0, 5, -5, 0]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Trophy className="w-12 h-12" />
+                  </motion.div>
+                </div>
+                <motion.div
+                  className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
+                  animate={{
+                    x: [0, 5, 0]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <span>View Rankings</span>
+                  <ArrowRight className="w-5 h-5 ml-2" />
+              </motion.div>
+              </div>
+          </motion.div>
+
+            {/* Report Card */}
+            <motion.div
+              className="group cursor-pointer"
+              onClick={() => navigate('/reports')}
+              whileHover={{ 
+                scale: 1.02,
+                y: -5,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+              }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="bg-gradient-to-r from-teal-500 to-cyan-500 rounded-3xl p-6 text-white shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold mb-2">📊 Report</h3>
+                    <p className="text-teal-100">Track your progress</p>
+                  </div>
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <BarChart3 className="w-12 h-12" />
+                  </motion.div>
+                </div>
+                <motion.div
+                  className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
                 animate={{
-                  x: [0, 5, 0]
+                    x: [0, 5, 0]
                 }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <span>View Rankings</span>
-                <ArrowRight className="w-5 h-5 ml-2" />
-            </motion.div>
-            </div>
-        </motion.div>
-
-          {/* Report Card */}
-          <motion.div
-            className="group cursor-pointer"
-            onClick={() => navigate('/reports')}
-            whileHover={{ 
-              scale: 1.02,
-              y: -5,
-              boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
-            }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="bg-gradient-to-r from-teal-500 to-cyan-500 rounded-3xl p-6 text-white shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-bold mb-2">📊 Report</h3>
-                  <p className="text-teal-100">Track your progress</p>
-                </div>
-                <motion.div
-                  animate={{
-                    scale: [1, 1.1, 1]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <BarChart3 className="w-12 h-12" />
+                  <span>View Report</span>
+                  <ArrowRight className="w-5 h-5 ml-2" />
                 </motion.div>
               </div>
-              <motion.div
-                className="flex items-center text-white/90 font-semibold group-hover:text-white transition-colors"
-              animate={{
-                  x: [0, 5, 0]
-              }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-                <span>View Report</span>
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </motion.div>
-            </div>
+            </motion.div>
           </motion.div>
+
         </motion.div>
-
-
-
-      </motion.div>
-    </div>
+      </div>
+    </StudentAuthGuard>
   );
 };
 

@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../lib/firebase';
+import { auth, db } from '../../lib/firebase';
 import { User, Lock, Eye, EyeOff, ArrowRight, Shield } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 interface AdminLoginFormProps {
   onToggleForm: () => void;
@@ -54,13 +55,17 @@ const AdminLoginForm = ({ onToggleForm }: AdminLoginFormProps) => {
 
   const createAdminUser = async () => {
     try {
-      await createUserWithEmailAndPassword(auth, 'admin@gmail.com', 'admin12345');
+      const adminEmail = import.meta.env.VITE_SUPER_ADMIN_EMAIL || 'admin@gmail.com';
+      const adminPassword = import.meta.env.VITE_SUPER_ADMIN_PASSWORD || 'admin12345';
+      console.log('Debug: Creating admin user with email:', adminEmail);
+      await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
       console.log('Admin user created successfully');
       return true;
     } catch (error: any) {
-      console.error('Error creating admin user:', error);
+      console.error('Error creating admin user:', error.code, error.message, error);
       if (error.code === 'auth/email-already-in-use') {
         // User exists, try to sign in again
+        console.log('Debug: Admin user already exists, proceeding with login');
         return true;
       }
       return false;
@@ -72,21 +77,117 @@ const AdminLoginForm = ({ onToggleForm }: AdminLoginFormProps) => {
     
     if (!validateForm()) return;
 
-    // Check if using admin credentials
-    if (formData.email !== 'admin@gmail.com' || formData.password !== 'admin12345') {
-      toast({
-        title: "Invalid Admin Credentials",
-        description: "Only admin@gmail.com with password admin12345 can access the admin panel.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsLoading(true);
     
     try {
+      // Get admin credentials from environment variables
+      const adminEmail = import.meta.env.VITE_SUPER_ADMIN_EMAIL || 'admin@gmail.com';
+      const adminPassword = import.meta.env.VITE_SUPER_ADMIN_PASSWORD || 'admin12345';
+      
+      console.log('Debug: Environment admin credentials:', {
+        adminEmail,
+        adminPassword: adminPassword ? '***' : 'MISSING',
+        envVarEmail: import.meta.env.VITE_SUPER_ADMIN_EMAIL ? '***' : 'MISSING',
+        envVarPassword: import.meta.env.VITE_SUPER_ADMIN_PASSWORD ? '***' : 'MISSING'
+      });
+      
+      console.log('Debug: Form data:', {
+        email: formData.email,
+        password: formData.password ? '***' : 'MISSING'
+      });
+      
+      // First, check if this is a main admin login
+      const isMainAdmin = formData.email === adminEmail && formData.password === adminPassword;
+      
+      console.log('Debug: Main admin check:', {
+        isMainAdmin,
+        emailMatch: formData.email === adminEmail,
+        passwordMatch: formData.password === adminPassword
+      });
+      
+      if (isMainAdmin) {
+        console.log('Debug: Attempting main admin login...');
+        try {
+          await signInWithEmailAndPassword(auth, formData.email, formData.password);
+          
+          console.log('Debug: Main admin login successful');
+          toast({
+            title: "Admin Access Granted",
+            description: "Welcome to the MindLeap Admin Panel.",
+          });
+          
+          // Redirect to admin panel
+          window.location.href = '/admin';
+          return;
+        } catch (error: any) {
+          console.log('Debug: Main admin login failed:', error.code, error.message);
+          if (error.code === 'auth/user-not-found') {
+            // Create admin user and try again
+            console.log('Debug: User not found, creating admin user...');
+            toast({
+              title: "Creating Admin Account",
+              description: "Setting up admin account for first time...",
+            });
+            
+            const created = await createAdminUser();
+            console.log('Debug: Admin user creation result:', created);
+            if (created) {
+              try {
+                console.log('Debug: Retrying login after user creation...');
+                await signInWithEmailAndPassword(auth, formData.email, formData.password);
+                console.log('Debug: Login successful after user creation');
+                toast({
+                  title: "Admin Access Granted",
+                  description: "Welcome to the MindLeap Admin Panel.",
+                });
+                window.location.href = '/admin';
+                return;
+              } catch (retryError: any) {
+                console.error('Debug: Retry login failed:', retryError);
+                toast({
+                  title: "Admin Login Error",
+                  description: "Failed to login after account creation. Please try again.",
+                  variant: "destructive"
+                });
+                return;
+              }
+            }
+          } else {
+            console.error('Debug: Unexpected login error:', error);
+            throw error; // Re-throw to be handled by outer catch
+          }
+        }
+      }
+      
+      console.log('Debug: Not main admin, checking sub-admin...');
+      // Check if this is a sub-admin
+      const subAdminQuery = query(
+        collection(db, 'subAdmins'),
+        where('email', '==', formData.email),
+        where('isActive', '==', true)
+      );
+      
+      const subAdminSnapshot = await getDocs(subAdminQuery);
+      console.log('Debug: Sub-admin query result:', {
+        found: !subAdminSnapshot.empty,
+        count: subAdminSnapshot.size
+      });
+      
+      if (subAdminSnapshot.empty && !isMainAdmin) {
+        console.log('Debug: No admin or sub-admin found for email:', formData.email);
+        toast({
+          title: "Access Denied",
+          description: "This email is not registered as an admin or sub-admin.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Try to sign in with Firebase Auth
+      console.log('Debug: Attempting Firebase auth signin...');
       await signInWithEmailAndPassword(auth, formData.email, formData.password);
       
+      console.log('Debug: Firebase auth signin successful');
       toast({
         title: "Admin Access Granted",
         description: "Welcome to the MindLeap Admin Panel.",
@@ -94,60 +195,35 @@ const AdminLoginForm = ({ onToggleForm }: AdminLoginFormProps) => {
       
       // Redirect to admin panel
       window.location.href = '/admin';
-    } catch (error: any) {
-      console.log('Login error:', error.code);
       
-      if (error.code === 'auth/user-not-found') {
-        // Create admin user and try again
-        toast({
-          title: "Creating Admin Account",
-          description: "Setting up admin account for first time...",
-        });
-        
-        const created = await createAdminUser();
-        if (created) {
-          try {
-            await signInWithEmailAndPassword(auth, formData.email, formData.password);
-            toast({
-              title: "Admin Access Granted",
-              description: "Welcome to the MindLeap Admin Panel.",
-            });
-            window.location.href = '/admin';
-          } catch (retryError: any) {
-            toast({
-              title: "Admin Login Error",
-              description: "Failed to login after account creation. Please try again.",
-              variant: "destructive"
-            });
-          }
-        } else {
-          toast({
-            title: "Admin Setup Error",
-            description: "Failed to create admin account. Please try again.",
-            variant: "destructive"
-          });
-        }
-      } else {
-        let errorMessage = "Login failed. Please check your credentials.";
-        
-        switch (error.code) {
-          case 'auth/wrong-password':
-            errorMessage = "Incorrect password. Please try again.";
-            break;
-          case 'auth/invalid-email':
-            errorMessage = "Please enter a valid email address.";
-            break;
-          case 'auth/too-many-requests':
-            errorMessage = "Too many failed attempts. Please try again later.";
-            break;
-        }
-        
-        toast({
-          title: "Admin Login Error",
-          description: errorMessage,
-          variant: "destructive"
-        });
+    } catch (error: any) {
+      console.error('Debug: Login error caught in outer catch:', error.code, error.message, error);
+      
+      let errorMessage = "Login failed. Please check your credentials.";
+      
+      switch (error.code) {
+        case 'auth/wrong-password':
+          errorMessage = "Incorrect password. Please try again.";
+          break;
+        case 'auth/invalid-email':
+          errorMessage = "Please enter a valid email address.";
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = "Too many failed attempts. Please try again later.";
+          break;
+        case 'auth/user-not-found':
+          errorMessage = "This email is not registered as an admin or sub-admin.";
+          break;
+        case 'auth/invalid-credential':
+          errorMessage = "Invalid credentials. Please check your email and password.";
+          break;
       }
+      
+      toast({
+        title: "Admin Login Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }

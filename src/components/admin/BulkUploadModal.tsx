@@ -13,6 +13,23 @@ import { generatePassword } from '../../utils/studentIdGenerator';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 
+// Secondary Firebase app for bulk student creation (to avoid logging out admin)
+const getSecondaryFirebaseApp = () => {
+  const firebaseConfig = {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
+  };
+  
+  return initializeApp(firebaseConfig, 'bulkUpload-' + Date.now());
+};
+
+// Get the main Firebase auth instead of using secondary app
+import { auth as mainAuth } from '../../lib/firebase';
+
 interface District {
   districtName: string;
   districtCode: string;
@@ -74,18 +91,6 @@ interface BulkUploadModalProps {
   onClose: () => void;
   onSuccess: (students: ProcessedStudent[]) => void;
 }
-
-// Secondary Firebase app for bulk student creation
-const secondaryApp = initializeApp({
-  apiKey: "AIzaSyC7a43eeu9vH4fGeQfUuBpphpW7zuE8dBA",
-  authDomain: "test-mindleap.firebaseapp.com",
-  projectId: "test-mindleap",
-  storageBucket: "test-mindleap.firebasestorage.app",
-  messagingSenderId: "402749246470",
-  appId: "1:402749246470:web:c3411e9ccde8a419fbc787"
-}, "bulkUpload");
-
-const secondaryAuth = getAuth(secondaryApp);
 
 const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [currentStep, setCurrentStep] = useState<'selection' | 'upload' | 'validation' | 'processing' | 'results'>('selection');
@@ -240,8 +245,8 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
       return;
     }
 
-        const templateData = [
-      ['State Code', 'District Code', 'School Code', 'Student Name', 'Class', 'Gender', 'Age', 'Parent Details', 'WhatsApp Number', 'Email', 'Address']
+    const templateData = [
+      ['State', 'District', 'School', 'Student Name', 'Address', 'Email', 'Parent Details', 'Age', 'WhatsApp Number', 'Gender']
     ];
 
     // Add sample data for each selected combination
@@ -257,12 +262,31 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
           const school = schools.find(s => s.schoolCode === schoolCode && s.districtCode === districtCode);
           if (!school) return;
 
-          // Format school code with proper padding (01, 02, etc.)
-          const formattedSchoolCode = schoolCode.padStart(2, '0');
-          
           // Add sample students for this combination
-          templateData.push([state.stateCode, districtCode, formattedSchoolCode, 'John Doe', '10', 'M', '16', 'Mr. John Sr.', '9876543210', 'john@example.com', '123 Main St']);
-          templateData.push([state.stateCode, districtCode, formattedSchoolCode, 'Jane Smith', '9', 'F', '15', 'Mrs. Jane Sr.', '9876543211', 'jane@example.com', '456 Oak Ave']);
+          templateData.push([
+            state.stateName, // State
+            district.districtName, // District
+            school.name, // School
+            'John Doe', // Student Name
+            '123 Main St', // Address
+            'john@example.com', // Email
+            'Mr. John Sr.', // Parent Details
+            '16', // Age
+            '9876543210', // WhatsApp Number
+            'Male' // Gender
+          ]);
+          templateData.push([
+            state.stateName,
+            district.districtName,
+            school.name,
+            'Jane Smith',
+            '456 Oak Ave',
+            'jane@example.com',
+            'Mrs. Jane Sr.',
+            '15',
+            '9876543211',
+            'Female'
+          ]);
         });
       });
     });
@@ -325,7 +349,6 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
 
   const processUploadedData = (jsonData: string[][]) => {
     try {
-
       if (jsonData.length < 2) {
         toast({
           title: "Error",
@@ -337,9 +360,9 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
 
       const students: BulkStudent[] = [];
       const headers = jsonData[0] as string[];
-      
+
       // Validate headers
-      const expectedHeaders = ['State Code', 'District Code', 'School Code', 'Student Name'];
+      const expectedHeaders = ['State', 'District', 'School', 'Student Name'];
       const hasValidHeaders = expectedHeaders.every(header => 
         headers.some(h => h?.toLowerCase().includes(header.toLowerCase()))
       );
@@ -347,41 +370,43 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
       if (!hasValidHeaders) {
         toast({
           title: "Invalid File Format",
-          description: "File must contain columns: State Code, District Code, School Code, Student Name",
+          description: "File must contain columns: State, District, School, Student Name",
           variant: "destructive"
         });
         return;
       }
 
-      // Get column indices for additional fields
+      // Get column indices for new fields
       const getColumnIndex = (columnName: string) => {
         return headers.findIndex(h => h?.toLowerCase().includes(columnName.toLowerCase()));
       };
 
-      const classIndex = getColumnIndex('class');
-      const genderIndex = getColumnIndex('gender');
-      const ageIndex = getColumnIndex('age');
-      const parentIndex = getColumnIndex('parent');
-      const whatsappIndex = getColumnIndex('whatsapp');
-      const emailIndex = getColumnIndex('email');
+      const stateIndex = getColumnIndex('state');
+      const districtIndex = getColumnIndex('district');
+      const schoolIndex = getColumnIndex('school');
+      const nameIndex = getColumnIndex('student name');
       const addressIndex = getColumnIndex('address');
+      const emailIndex = getColumnIndex('email');
+      const parentIndex = getColumnIndex('parent');
+      const ageIndex = getColumnIndex('age');
+      const whatsappIndex = getColumnIndex('whatsapp');
+      const genderIndex = getColumnIndex('gender');
 
       // Process data rows
       for (let i = 1; i < jsonData.length; i++) {
         const row = jsonData[i] as string[];
         if (row.length >= 4 && row.some(cell => cell?.toString().trim())) {
           students.push({
-            stateCode: row[0]?.toString().trim() || '',
-            districtCode: row[1]?.toString().trim() || '',
-            schoolCode: row[2]?.toString().trim().padStart(2, '0') || '', // Pad school code
-            name: row[3]?.toString().trim() || '',
-            class: classIndex >= 0 ? row[classIndex]?.toString().trim() : '',
-            gender: genderIndex >= 0 ? row[genderIndex]?.toString().trim() : '',
-            age: ageIndex >= 0 ? row[ageIndex]?.toString().trim() : '',
-            parentDetails: parentIndex >= 0 ? row[parentIndex]?.toString().trim() : '',
-            whatsappNumber: whatsappIndex >= 0 ? row[whatsappIndex]?.toString().trim() : '',
-            email: emailIndex >= 0 ? row[emailIndex]?.toString().trim() : '',
+            stateCode: row[stateIndex]?.toString().trim() || '',
+            districtCode: row[districtIndex]?.toString().trim() || '',
+            schoolCode: row[schoolIndex]?.toString().trim() || '',
+            name: row[nameIndex]?.toString().trim() || '',
             address: addressIndex >= 0 ? row[addressIndex]?.toString().trim() : '',
+            email: emailIndex >= 0 ? row[emailIndex]?.toString().trim() : '',
+            parentDetails: parentIndex >= 0 ? row[parentIndex]?.toString().trim() : '',
+            age: ageIndex >= 0 ? row[ageIndex]?.toString().trim() : '',
+            whatsappNumber: whatsappIndex >= 0 ? row[whatsappIndex]?.toString().trim() : '',
+            gender: genderIndex >= 0 ? row[genderIndex]?.toString().trim() : '',
             rowNumber: i + 1
           });
         }
@@ -416,59 +441,59 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
     students.forEach((student) => {
       let hasError = false;
 
-      // Validate state code
-      const state = states.find(s => s.stateCode === student.stateCode);
+      // Validate state by name
+      const state = states.find(s => s.stateName === student.stateCode);
       if (!state) {
         errors.push({
           row: student.rowNumber,
-          field: 'State Code',
-          message: `Invalid state code "${student.stateCode}"`
+          field: 'State',
+          message: `Invalid state "${student.stateCode}"`
         });
         hasError = true;
       } else if (!selectedStates.includes(state.stateName)) {
         errors.push({
           row: student.rowNumber,
-          field: 'State Code',
+          field: 'State',
           message: `State "${state.stateName}" not selected for upload`
         });
         hasError = true;
       }
 
-      // Validate district code
-      const district = state?.districts.find(d => d.districtCode === student.districtCode);
+      // Validate district by name
+      const district = state?.districts.find(d => d.districtName === student.districtCode);
       if (!district) {
         errors.push({
           row: student.rowNumber,
-          field: 'District Code',
-          message: `Invalid district code "${student.districtCode}" for state "${student.stateCode}"`
+          field: 'District',
+          message: `Invalid district "${student.districtCode}" for state "${student.stateCode}"`
         });
         hasError = true;
-      } else if (!selectedDistricts.includes(student.districtCode)) {
+      } else if (!selectedDistricts.includes(district.districtCode)) {
         errors.push({
           row: student.rowNumber,
-          field: 'District Code',
+          field: 'District',
           message: `District "${district.districtName}" not selected for upload`
         });
         hasError = true;
       }
 
-      // Validate school code
+      // Validate school by name
       const school = schools.find(s => 
-        s.schoolCode === student.schoolCode && 
-        s.districtCode === student.districtCode &&
+        s.name === student.schoolCode && 
+        s.districtCode === district?.districtCode &&
         s.state === state?.stateName
       );
       if (!school) {
         errors.push({
           row: student.rowNumber,
-          field: 'School Code',
-          message: `Invalid school code "${student.schoolCode}" for district "${student.districtCode}"`
+          field: 'School',
+          message: `Invalid school "${student.schoolCode}" for district "${student.districtCode}"`
         });
         hasError = true;
-      } else if (!selectedSchools.includes(student.schoolCode)) {
+      } else if (!selectedSchools.includes(school.schoolCode)) {
         errors.push({
           row: student.rowNumber,
-          field: 'School Code',
+          field: 'School',
           message: `School "${school.name}" not selected for upload`
         });
         hasError = true;
@@ -485,18 +510,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
         hasError = true;
       }
 
-      // Validate class if provided
-      if (student.class && !['8', '9', '10'].includes(student.class)) {
-        errors.push({
-          row: student.rowNumber,
-          field: 'Class',
-          message: `Invalid class "${student.class}". Must be 8, 9, or 10`,
-          studentName: student.name
-        });
-        hasError = true;
-      }
-
-      // Validate gender if provided
+      // Validate gender
       if (student.gender && !['M', 'F', 'Male', 'Female'].includes(student.gender)) {
         errors.push({
           row: student.rowNumber,
@@ -507,7 +521,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
         hasError = true;
       }
 
-      // Validate age if provided
+      // Validate age
       if (student.age && (isNaN(Number(student.age)) || Number(student.age) < 10 || Number(student.age) > 20)) {
         errors.push({
           row: student.rowNumber,
@@ -518,7 +532,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
         hasError = true;
       }
 
-      // Validate WhatsApp number if provided
+      // Validate WhatsApp number
       if (student.whatsappNumber && !/^\d{10}$/.test(student.whatsappNumber)) {
         errors.push({
           row: student.rowNumber,
@@ -529,7 +543,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
         hasError = true;
       }
 
-      // Validate email if provided
+      // Validate email
       if (student.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(student.email)) {
         errors.push({
           row: student.rowNumber,
@@ -541,7 +555,13 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
       }
 
       if (!hasError) {
-        valid.push(student);
+        // Map names to codes for Firestore
+        valid.push({
+          ...student,
+          stateCode: state?.stateCode || '',
+          districtCode: district?.districtCode || '',
+          schoolCode: school?.schoolCode || ''
+        });
       }
     });
 
@@ -575,31 +595,103 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
     throw new Error('No more student serial numbers available for this school');
   };
 
+  // Pre-generate serial numbers for bulk upload to avoid race conditions
+  const generateBulkSerials = async (students: BulkStudent[]): Promise<Map<string, string[]>> => {
+    const schoolSerials = new Map<string, string[]>();
+    
+    // Group students by school
+    const studentsBySchool = new Map<string, BulkStudent[]>();
+    students.forEach(student => {
+      const key = student.schoolCode;
+      if (!studentsBySchool.has(key)) {
+        studentsBySchool.set(key, []);
+      }
+      studentsBySchool.get(key)!.push(student);
+    });
+
+    // Generate serials for each school
+    for (const [schoolCode, schoolStudents] of studentsBySchool) {
+      const q = query(
+        collection(db, 'students'), 
+        where('schoolCode', '==', schoolCode)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const existingSerials = new Set<string>();
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.studentId) {
+          const serial = data.studentId.slice(-3);
+          existingSerials.add(serial);
+        }
+      });
+
+      const serials: string[] = [];
+      let nextSerial = 1;
+      
+      for (let i = 0; i < schoolStudents.length; i++) {
+        while (existingSerials.has(nextSerial.toString().padStart(3, '0'))) {
+          nextSerial++;
+        }
+        
+        if (nextSerial > 999) {
+          throw new Error(`No more student serial numbers available for school ${schoolCode}`);
+        }
+        
+        const serial = nextSerial.toString().padStart(3, '0');
+        serials.push(serial);
+        existingSerials.add(serial); // Mark as used for subsequent students
+        nextSerial++;
+      }
+      
+      schoolSerials.set(schoolCode, serials);
+    }
+    
+    return schoolSerials;
+  };
+
   const processStudents = async () => {
     setIsLoading(true);
     setCurrentStep('processing');
     setProcessingProgress(0);
-    setProcessingStatus('Initializing...');
+    setProcessingStatus('Pre-generating student serials...');
 
     const processed: ProcessedStudent[] = [];
     let successCount = 0;
     let failedCount = 0;
 
     try {
+      // Pre-generate all serial numbers to avoid race conditions
+      const serialsMap = await generateBulkSerials(validStudents);
+      console.log('Generated serials for bulk upload:', Object.fromEntries(serialsMap));
+      
+      setProcessingStatus('Processing students...');
       for (let i = 0; i < validStudents.length; i++) {
         const student = validStudents[i];
         setProcessingStatus(`Processing ${student.name}... (${i + 1}/${validStudents.length})`);
         
         try {
-          const serial = await generateStudentSerial(student.schoolCode);
+          // Use pre-generated serial to avoid race conditions  
+          const serial = serialsMap.get(student.schoolCode)?.shift();
+          if (!serial) {
+            throw new Error(`No serial number available for student ${student.name}`);
+          }
+          
           const studentId = `${student.stateCode}25${student.districtCode}${student.schoolCode}${serial}`;
           const password = generatePassword();
           const email = `${studentId}@mindleap.edu`;
 
-          // Check if email already exists in Firebase Auth
-          const signInMethods = await fetchSignInMethodsForEmail(secondaryAuth, email);
-          if (signInMethods && signInMethods.length > 0) {
-            // Email already registered, mark as failed and skip creation
+          console.log(`Creating student: ${student.name} with email: ${email}`);
+
+          // Check if student already exists in Firestore
+          const existingStudentQuery = query(
+            collection(db, 'students'),
+            where('studentId', '==', studentId)
+          );
+          const existingStudentSnapshot = await getDocs(existingStudentQuery);
+          
+          if (!existingStudentSnapshot.empty) {
+            console.log(`Student ID ${studentId} already exists in Firestore`);
             processed.push({
               name: student.name,
               studentId,
@@ -609,50 +701,139 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
               password: '',
               email,
               status: 'failed',
-              error: 'Email already in use'
+              error: 'Student ID already exists'
             });
             failedCount++;
-            // Update progress here and continue to next student
             setProcessingProgress(((i + 1) / validStudents.length) * 100);
             continue;
           }
 
-          // Create Firebase Auth account
-          const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-          const firebaseUser = userCredential.user;
+          // Check if email already exists in Firebase Auth using secondary app
+          try {
+            const tempSecondaryApp = getSecondaryFirebaseApp();
+            const tempSecondaryAuth = getAuth(tempSecondaryApp);
+            const signInMethods = await fetchSignInMethodsForEmail(tempSecondaryAuth, email);
+            if (signInMethods && signInMethods.length > 0) {
+              console.log(`Email ${email} already exists in Firebase Auth`);
+              processed.push({
+                name: student.name,
+                studentId,
+                stateCode: student.stateCode,
+                districtCode: student.districtCode,
+                schoolCode: student.schoolCode,
+                password: '',
+                email,
+                status: 'failed',
+                error: 'Email already registered'
+              });
+              failedCount++;
+              setProcessingProgress(((i + 1) / validStudents.length) * 100);
+              continue;
+            }
+          } catch (emailCheckError) {
+            console.log(`Email check failed for ${email}, proceeding with creation`);
+          }
+
+          // Create Firebase Auth account using secondary app to avoid logging out admin
+          let firebaseUser;
+          let secondaryApp;
+          let secondaryAuth;
+          try {
+            secondaryApp = getSecondaryFirebaseApp();
+            secondaryAuth = getAuth(secondaryApp);
+            
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+            firebaseUser = userCredential.user;
+            console.log(`Firebase Auth account created for ${student.name}: ${firebaseUser.uid}`);
+          } catch (authError: any) {
+            console.error(`Firebase Auth error for ${student.name}:`, authError);
+            
+            // Handle specific auth errors
+            if (authError.code === 'auth/email-already-in-use') {
+              processed.push({
+                name: student.name,
+                studentId,
+                stateCode: student.stateCode,
+                districtCode: student.districtCode,
+                schoolCode: student.schoolCode,
+                password: '',
+                email,
+                status: 'failed',
+                error: 'Email already in use'
+              });
+            } else {
+              processed.push({
+                name: student.name,
+                studentId,
+                stateCode: student.stateCode,
+                districtCode: student.districtCode,
+                schoolCode: student.schoolCode,
+                password: '',
+                email,
+                status: 'failed',
+                error: authError.message || 'Firebase Auth error'
+              });
+            }
+            failedCount++;
+            setProcessingProgress(((i + 1) / validStudents.length) * 100);
+            continue;
+          }
 
           // Store in Firestore with all fields
-          await addDoc(collection(db, 'students'), {
-            uid: firebaseUser.uid,
-            name: student.name,
-            studentId: studentId,
-            stateCode: student.stateCode,
-            districtCode: student.districtCode,
-            schoolCode: student.schoolCode,
-            password: password,
-            email: email,
-            class: student.class || '',
-            gender: student.gender || '',
-            age: student.age || '',
-            parentDetails: student.parentDetails || '',
-            whatsappNumber: student.whatsappNumber || '',
-            studentEmail: student.email || '',
-            address: student.address || '',
-            createdAt: new Date().toISOString()
-          });
+          try {
+            await addDoc(collection(db, 'students'), {
+              uid: firebaseUser.uid,
+              name: student.name,
+              studentId: studentId,
+              stateCode: student.stateCode,
+              districtCode: student.districtCode,
+              schoolCode: student.schoolCode,
+              password: password,
+              email: email,
+              address: student.address || '',
+              parentDetails: student.parentDetails || '',
+              age: student.age || '',
+              whatsappNumber: student.whatsappNumber || '',
+              gender: student.gender || '',
+              createdAt: new Date().toISOString()
+            });
 
-          processed.push({
-            name: student.name,
-            studentId,
-            stateCode: student.stateCode,
-            districtCode: student.districtCode,
-            schoolCode: student.schoolCode,
-            password,
-            email,
-            status: 'success'
-          });
+            console.log(`Firestore document created for ${student.name}`);
 
-          successCount++;
+            processed.push({
+              name: student.name,
+              studentId,
+              stateCode: student.stateCode,
+              districtCode: student.districtCode,
+              schoolCode: student.schoolCode,
+              password,
+              email,
+              status: 'success'
+            });
+
+            successCount++;
+            
+            // Sign out from secondary auth immediately to prevent admin logout
+            if (secondaryAuth) {
+              await secondaryAuth.signOut();
+              console.log(`Signed out from secondary auth for ${student.name}`);
+            }
+          } catch (firestoreError) {
+            console.error(`Firestore error for ${student.name}:`, firestoreError);
+            processed.push({
+              name: student.name,
+              studentId,
+              stateCode: student.stateCode,
+              districtCode: student.districtCode,
+              schoolCode: student.schoolCode,
+              password: '',
+              email,
+              status: 'failed',
+              error: 'Failed to save to database'
+            });
+            failedCount++;
+          }
+
         } catch (error) {
           console.error(`Error processing student ${student.name}:`, error);
           processed.push({
@@ -672,31 +853,35 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
         setProcessingProgress(((i + 1) / validStudents.length) * 100);
       }
 
-      // Sign out from secondary auth
-      await secondaryAuth.signOut();
+      console.log('✅ Bulk student creation completed successfully - Admin session preserved');
 
       setProcessedStudents(processed);
       setSuccessCount(successCount);
       setFailedCount(failedCount);
       setCurrentStep('results');
 
-      // Success toast
+      console.log(`Processing complete: ${successCount} success, ${failedCount} failed`);
+
+      // Show results toast
       if (successCount > 0) {
         toast({
-          title: "Students Created Successfully!",
-          description: `${successCount} students created successfully${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
+          title: "🎉 Students Created Successfully!",
+          description: `${successCount} student${successCount > 1 ? 's' : ''} created successfully${failedCount > 0 ? `, ${failedCount} failed` : ''}.`,
         });
-      }
-
-      if (failedCount > 0) {
+      } else if (failedCount > 0) {
         toast({
-          title: "Some Students Failed",
-          description: `${failedCount} students failed to create. Please check the results.`,
+          title: "⚠️ All Students Failed",
+          description: `${failedCount} student${failedCount > 1 ? 's' : ''} failed to create. Please check the results for details.`,
           variant: "destructive"
         });
       }
 
-      onSuccess(processed.filter(s => s.status === 'success'));
+      // Call onSuccess with successful students
+      const successfulStudents = processed.filter(s => s.status === 'success');
+      if (successfulStudents.length > 0) {
+        onSuccess(successfulStudents);
+      }
+
     } catch (error) {
       console.error('Error in bulk processing:', error);
       toast({
@@ -711,27 +896,58 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
   };
 
   const downloadResults = () => {
-    const headers = ['Student Name', 'Student ID', 'State Code', 'District Code', 'School Code', 'Password', 'Email', 'Status', 'Error'];
-    const data = processedStudents.map(student => [
-      student.name,
-      student.studentId,
-      student.stateCode,
-      student.districtCode,
-      student.schoolCode,
-      student.password,
-      student.email,
-      student.status,
-      student.error || ''
-    ]);
+    const headers = [
+      'Student Name', 'Student ID', 'Email', 'Password', 
+      'State', 'District', 'School', 'Status', 'Error',
+      'Address', 'Parent Details', 'Age', 'WhatsApp Number', 'Gender',
+      'Creation Date'
+    ];
+    
+    const data = processedStudents.map(student => {
+      // Find original student data for additional fields
+      const originalStudent = validStudents.find(s => s.name === student.name);
+      
+      return [
+        student.name,
+        student.studentId,
+        student.email,
+        student.password,
+        student.stateCode,
+        student.districtCode,
+        student.schoolCode,
+        student.status.toUpperCase(),
+        student.error || '',
+        originalStudent?.address || '',
+        originalStudent?.parentDetails || '',
+        originalStudent?.age || '',
+        originalStudent?.whatsappNumber || '',
+        originalStudent?.gender || '',
+        new Date().toLocaleString()
+      ];
+    });
 
     const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    
+    // Auto-fit column widths
+    const colWidths = headers.map((_, colIndex) => {
+      const maxLength = Math.max(
+        headers[colIndex].length,
+        ...data.map(row => (row[colIndex] || '').toString().length)
+      );
+      return { wch: Math.min(maxLength + 2, 50) };
+    });
+    ws['!cols'] = colWidths;
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Results');
-    XLSX.writeFile(wb, `bulk_upload_results_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'Student Results');
+    
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `bulk_upload_results_${timestamp}.xlsx`;
+    XLSX.writeFile(wb, filename);
 
     toast({
-      title: "Results Downloaded",
-      description: "Bulk upload results have been downloaded",
+      title: "📊 Results Downloaded",
+      description: `Complete student data exported to ${filename}`,
     });
   };
 
@@ -765,7 +981,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-gray-800 font-poppins flex items-center gap-2">
             <Users className="w-6 h-6" />
-            Enhanced Bulk Upload Students
+            Bulk Student Registration
           </DialogTitle>
         </DialogHeader>
 
@@ -934,11 +1150,15 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
               <div className="bg-blue-50 p-4 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <Upload className="w-5 h-5 text-blue-600" />
-                  <h3 className="font-semibold text-blue-800">Upload Excel File</h3>
+                  <h3 className="font-semibold text-blue-800">Upload Student Data File</h3>
                 </div>
-                <p className="text-blue-700 text-sm">
-                  Upload Excel (.xlsx) or CSV (.csv) file with required columns plus optional fields like Class, Gender, Age, etc.
+                <p className="text-blue-700 text-sm mb-2">
+                  Upload Excel (.xlsx) or CSV (.csv) file with student information. Required columns:
                 </p>
+                <div className="text-blue-700 text-sm space-y-1">
+                  <p><strong>Required:</strong> State, District, School, Student Name</p>
+                  <p><strong>Optional:</strong> Address, Email, Parent Details, Age, WhatsApp Number, Gender</p>
+                </div>
               </div>
 
               <div className="text-center">
@@ -1082,35 +1302,84 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
           {/* Step 5: Results */}
           {currentStep === 'results' && (
             <div className="space-y-4">
-              <div className="bg-green-50 p-4 rounded-lg">
+              <div className={`p-4 rounded-lg ${successCount > 0 ? 'bg-green-50' : 'bg-red-50'}`}>
                 <div className="flex items-center gap-2 mb-2">
-                  <Check className="w-5 h-5 text-green-600" />
-                  <h3 className="font-semibold text-green-800">Processing Complete</h3>
+                  {successCount > 0 ? (
+                    <Check className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-600" />
+                  )}
+                  <h3 className={`font-semibold ${successCount > 0 ? 'text-green-800' : 'text-red-800'}`}>
+                    Processing Complete
+                  </h3>
                 </div>
-                <div className="text-green-700 text-sm space-y-1">
-                  <p><strong>Total Students:</strong> {processedStudents.length}</p>
-                  <p><strong>Successful:</strong> {successCount}</p>
+                <div className={`text-sm space-y-1 ${successCount > 0 ? 'text-green-700' : 'text-red-700'}`}>
+                  <p><strong>Total Students Processed:</strong> {processedStudents.length}</p>
+                  <p><strong>Successfully Created:</strong> {successCount}</p>
                   <p><strong>Failed:</strong> {failedCount}</p>
                 </div>
               </div>
 
-              {processedStudents.length > 0 && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-semibold text-gray-800 mb-2">Sample Results:</h4>
-                  <div className="max-h-32 overflow-y-auto space-y-1">
-                    {processedStudents.slice(0, 5).map((student, index) => (
-                      <p key={index} className={`text-sm ${student.status === 'success' ? 'text-green-700' : 'text-red-700'}`}>
-                        {student.name} - {student.studentId || 'Failed'} ({student.status})
-                      </p>
-                    ))}
-                    {processedStudents.length > 5 && (
-                      <p className="text-sm text-gray-600">
-                        ...and {processedStudents.length - 5} more results
+              {/* Success Details */}
+              {successCount > 0 && (
+                <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+                  <h4 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Successfully Created Students ({successCount})
+                  </h4>
+                  <div className="max-h-40 overflow-y-auto space-y-2">
+                    {processedStudents
+                      .filter(student => student.status === 'success')
+                      .map((student, index) => (
+                        <div key={index} className="bg-white p-3 rounded border border-green-300">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-green-900">{student.name}</p>
+                              <p className="text-sm text-green-700 font-mono">{student.studentId}</p>
+                              <p className="text-xs text-green-600">{student.email}</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xs text-green-600">Password</div>
+                              <div className="text-sm font-mono text-green-800">{student.password}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Failed Details */}
+              {failedCount > 0 && (
+                <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+                  <h4 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5" />
+                    Failed Students ({failedCount})
+                  </h4>
+                  <div className="max-h-32 overflow-y-auto space-y-2">
+                    {processedStudents
+                      .filter(student => student.status === 'failed')
+                      .slice(0, 10)
+                      .map((student, index) => (
+                        <div key={index} className="bg-white p-2 rounded border border-red-300">
+                          <p className="font-medium text-red-900">{student.name}</p>
+                          <p className="text-sm text-red-700">{student.error}</p>
+                        </div>
+                      ))}
+                    {processedStudents.filter(s => s.status === 'failed').length > 10 && (
+                      <p className="text-sm text-red-600 text-center">
+                        ...and {processedStudents.filter(s => s.status === 'failed').length - 10} more failed students
                       </p>
                     )}
                   </div>
                 </div>
               )}
+
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>💡 Tip:</strong> Use the "Download Results" button to get a complete Excel file with all student details and passwords for record keeping.
+                </p>
+              </div>
 
               <div className="flex gap-3">
                 <Button
@@ -1123,9 +1392,10 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
                 <Button
                   onClick={downloadResults}
                   className="flex-1 bg-gradient-to-r from-green-500 to-blue-500"
+                  disabled={processedStudents.length === 0}
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Download Results
+                  Download Results ({processedStudents.length})
                 </Button>
               </div>
             </div>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, School, LogOut, Brain, Calendar, Bug, MessageSquare, Building, MapPin, Target, Video, Play, Menu, X } from 'lucide-react';
+import { Users, School, LogOut, Brain, Calendar, Bug, MessageSquare, Building, MapPin, Target, Video, Play, Menu, X, Shield, FileText } from 'lucide-react';
 import { auth } from '../../lib/firebase';
+import { useAdminPermissions } from './AdminContext';
 import SchoolsTab from './SchoolsTab';
 import UsersTab from './UsersTab';
 import DailyStreakQuestionsTab from './DailyStreakQuestionsTab';
@@ -12,8 +13,13 @@ import StateManagementTab from './StateManagementTab';
 import QuizManagementTab from './QuizManagementTab';
 import WebinarManagementTab from './WebinarManagementTab';
 import WorkshopManagementTab from './WorkshopManagementTab';
+import SubAdminManagementTab from './SubAdminManagementTab';
+import QuestionSchedulerTab from './QuestionSchedulerTab';
+import AdminSchoolReports from '../../pages/AdminSchoolReports';
 
 const AdminPanel = () => {
+  const { isAdmin, hasPermission } = useAdminPermissions();
+  
   // Persist the selected tab across reloads
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -45,24 +51,48 @@ const AdminPanel = () => {
     }
   };
 
-  const tabs = [
-    { id: 'schools', label: 'Schools', icon: School },
-    { id: 'users', label: 'Users', icon: Users },
-    { id: 'states', label: 'States & Districts', icon: MapPin },
-    { id: 'quizzes', label: 'Quiz Manage', icon: Target },
-    { id: 'webinars', label: 'Live Webinars', icon: Video },
-    { id: 'workshops', label: 'Workshops', icon: Play },
-    { id: 'contact-queries', label: 'Contact Queries', icon: MessageSquare },
-    { id: 'school-requests', label: 'School Requests', icon: Building },
-    { id: 'questions', label: 'Streak Scheduler', icon: Calendar },
-    { id: 'debug', label: 'Debug Tools', icon: Bug },
+  const allTabs = [
+    { id: 'schools', label: 'Schools', icon: School, permission: 'schools' },
+    { id: 'users', label: 'Users', icon: Users, permission: 'users' },
+    { id: 'sub-admins', label: 'Sub-Admins', icon: Shield, permission: 'admin-only' },
+    { id: 'school-reports', label: 'School Reports', icon: FileText, permission: 'schools' },
+    { id: 'states', label: 'States & Districts', icon: MapPin, permission: 'states' },
+    { id: 'quizzes', label: 'Quiz Manage', icon: Target, permission: 'quizzes' },
+    { id: 'webinars', label: 'Live Webinars', icon: Video, permission: 'webinars' },
+    { id: 'workshops', label: 'Workshops', icon: Play, permission: 'workshops' },
+    { id: 'contact-queries', label: 'Contact Queries', icon: MessageSquare, permission: 'contact-queries' },
+    { id: 'school-requests', label: 'School Requests', icon: Building, permission: 'school-requests' },
+    { id: 'questions', label: 'Streak Scheduler', icon: Calendar, permission: 'questions' },
+    { id: 'question-scheduler', label: 'Question Scheduler', icon: Brain, permission: 'questions' },
+    { id: 'debug', label: 'Debug Tools', icon: Bug, permission: 'debug' },
   ];
+
+  // Filter tabs based on permissions
+  const tabs = allTabs.filter(tab => {
+    if (tab.permission === 'admin-only') {
+      return isAdmin; // Only main admin can see sub-admin management
+    }
+    return hasPermission(tab.permission);
+  });
 
   const handleTabClick = (tabId: string) => {
     setActiveTab(tabId);
     localStorage.setItem('adminActiveTab', tabId);
     setIsSidebarOpen(false); // Always close sidebar on tab selection
   };
+
+  // Validate active tab has permission
+  useEffect(() => {
+    const currentTab = allTabs.find(tab => tab.id === activeTab);
+    if (currentTab) {
+      const hasCurrentPermission = currentTab.permission === 'admin-only' ? isAdmin : hasPermission(currentTab.permission);
+      if (!hasCurrentPermission && tabs.length > 0) {
+        // Switch to first available tab if current tab is not permitted
+        setActiveTab(tabs[0].id);
+        localStorage.setItem('adminActiveTab', tabs[0].id);
+      }
+    }
+  }, [activeTab, isAdmin, hasPermission, tabs]);
 
   const Sidebar = () => (
     <div className="flex flex-col h-full">
@@ -74,6 +104,19 @@ const AdminPanel = () => {
         <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-1">
           <X className="w-6 h-6 text-gray-600" />
         </button>
+      </div>
+
+      {/* Role & Permissions Info */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="text-sm text-gray-600 mb-2">
+          Role: <span className="font-medium text-gray-800">{isAdmin ? 'Main Administrator' : 'Sub-Administrator'}</span>
+        </div>
+        {!isAdmin && (
+          <div className="text-xs text-gray-500 flex items-center gap-1">
+            <Shield className="w-3 h-3" />
+            Limited permissions - Delete actions restricted
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
@@ -172,16 +215,36 @@ const AdminPanel = () => {
               transition={{ duration: 0.3 }}
               className="bg-white rounded-xl shadow-lg overflow-hidden"
             >
-              {activeTab === 'schools' && <SchoolsTab />}
-              {activeTab === 'users' && <UsersTab />}
-              {activeTab === 'states' && <StateManagementTab />}
-              {activeTab === 'quizzes' && <QuizManagementTab />}
-              {activeTab === 'webinars' && <WebinarManagementTab />}
-              {activeTab === 'workshops' && <WorkshopManagementTab />}
-              {activeTab === 'contact-queries' && <ContactQueriesTab />}
-              {activeTab === 'school-requests' && <SchoolRequestsTab />}
-              {activeTab === 'questions' && <DailyStreakQuestionsTab />}
-              {activeTab === 'debug' && <DebugTab />}
+              {activeTab === 'schools' && hasPermission('schools') && <SchoolsTab />}
+              {activeTab === 'users' && hasPermission('users') && <UsersTab />}
+              {activeTab === 'sub-admins' && isAdmin && <SubAdminManagementTab />}
+              {activeTab === 'school-reports' && hasPermission('schools') && <AdminSchoolReports />}
+              {activeTab === 'states' && hasPermission('states') && <StateManagementTab />}
+              {activeTab === 'quizzes' && hasPermission('quizzes') && <QuizManagementTab />}
+              {activeTab === 'webinars' && hasPermission('webinars') && <WebinarManagementTab />}
+              {activeTab === 'workshops' && hasPermission('workshops') && <WorkshopManagementTab />}
+              {activeTab === 'contact-queries' && hasPermission('contact-queries') && <ContactQueriesTab />}
+              {activeTab === 'school-requests' && hasPermission('school-requests') && <SchoolRequestsTab />}
+              {activeTab === 'questions' && hasPermission('questions') && <DailyStreakQuestionsTab />}
+              {activeTab === 'question-scheduler' && hasPermission('questions') && <QuestionSchedulerTab />}
+              {activeTab === 'debug' && hasPermission('debug') && <DebugTab />}
+              
+              {/* Permission denied message */}
+              {!hasPermission(activeTab) && activeTab !== 'sub-admins' && (
+                <div className="p-8 text-center">
+                  <div className="text-6xl mb-4">🔒</div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h3>
+                  <p className="text-gray-600">You don't have permission to access this section.</p>
+                </div>
+              )}
+              
+              {activeTab === 'sub-admins' && !isAdmin && (
+                <div className="p-8 text-center">
+                  <div className="text-6xl mb-4">🔒</div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">Admin Only</h3>
+                  <p className="text-gray-600">Only the main administrator can manage sub-admins.</p>
+                </div>
+              )}
             </motion.div>
           </main>
         </div>

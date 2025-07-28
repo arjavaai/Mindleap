@@ -5,6 +5,50 @@
 
 MindLeap is a modern, interactive educational platform designed to revolutionize learning through engaging quizzes, daily challenges, and gamified experiences. Built with React, TypeScript, and Firebase, it provides a complete ecosystem with three main components: **Student Dashboard**, **Admin Dashboard**, and **Landing Page**.
 
+## 🚀 Quick Start
+
+### Environment Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd mindleap-landing-page-design
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment variables**
+   ```bash
+   # Copy the example environment file
+   cp .env.example .env
+   
+   # Edit .env with your Firebase configuration
+   # The .env file contains your Firebase project credentials
+   ```
+
+4. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+### Firebase Configuration
+
+The application requires the following environment variables in your `.env` file:
+
+```env
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+> **⚠️ Security Note**: Never commit your `.env` file to version control. It contains sensitive Firebase credentials.
+
 ## ✨ Features
 
 ### 🎓 Student Features
@@ -301,5 +345,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-#   M i n d l e a p  
+#   M i n d l e a p 
+ 
  

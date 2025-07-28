@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { School, Mail, Phone, User, Calendar, MapPin, Eye, Trash2, Filter } from 'lucide-react';
+import { School, Mail, Phone, User, Calendar, MapPin, Eye, Trash2, Filter, Shield } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { db } from '../../lib/firebase';
 import { collection, getDocs, deleteDoc, doc, updateDoc, orderBy, query } from 'firebase/firestore';
+import { useAdminPermissions } from './AdminContext';
 
 interface SchoolRequest {
   id: string;
@@ -20,6 +21,7 @@ interface SchoolRequest {
 }
 
 const SchoolRequestsTab = () => {
+  const { canDelete } = useAdminPermissions();
   const [requests, setRequests] = useState<SchoolRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<SchoolRequest | null>(null);
@@ -59,6 +61,11 @@ const SchoolRequestsTab = () => {
   };
 
   const deleteRequest = async (requestId: string) => {
+    if (!canDelete) {
+      alert('Permission Denied: You don\'t have permission to delete school requests. Only the main administrator can perform delete operations.');
+      return;
+    }
+
     if (window.confirm('Are you sure you want to delete this school request?')) {
       try {
         await deleteDoc(doc(db, 'schoolRequests', requestId));
@@ -107,7 +114,7 @@ const SchoolRequestsTab = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-deep-blue">School Partnership Requests</h2>
@@ -214,9 +221,14 @@ const SchoolRequestsTab = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => deleteRequest(selectedRequest.id)}
-                    className="text-red-600 hover:text-red-700"
+                    className={canDelete 
+                      ? "text-red-600 hover:text-red-700" 
+                      : "text-gray-400 cursor-not-allowed opacity-50"
+                    }
+                    disabled={!canDelete}
+                    title={canDelete ? "Delete request" : "Permission Denied - Only main admin can delete"}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {canDelete ? <Trash2 className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
                   </Button>
                 </CardTitle>
               </CardHeader>

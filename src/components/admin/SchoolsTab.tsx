@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, School, MapPin, Hash, Check, Edit, Trash2, Upload, Filter, Table, FileDown, Search, Eye } from 'lucide-react';
+import { Plus, School, MapPin, Hash, Check, Edit, Trash2, Upload, Filter, Table, FileDown, Search, Eye, Shield } from 'lucide-react';
 import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc, where, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Input } from '../ui/input';
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useAdminPermissions } from './AdminContext';
 import * as XLSX from 'xlsx';
 
 interface District {
@@ -44,6 +45,7 @@ interface School {
 }
 
 const SchoolsTab = () => {
+  const { canDelete } = useAdminPermissions();
   const [schools, setSchools] = useState<School[]>([]);
   const [states, setStates] = useState<State[]>([]);
   const [schoolScores, setSchoolScores] = useState<{ [key: string]: number }>({});
@@ -474,6 +476,15 @@ const SchoolsTab = () => {
   };
 
   const handleDeleteSchool = async (school: School) => {
+    if (!canDelete) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to delete schools. Only the main administrator can perform delete operations.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete ${school.name}? This action cannot be undone.`)) {
       return;
     }
@@ -560,7 +571,7 @@ const SchoolsTab = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
@@ -772,10 +783,14 @@ const SchoolsTab = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => handleDeleteSchool(school)}
-                        className="w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:border-red-300"
-                        title="Delete School"
+                        className={`w-8 h-8 p-0 ${canDelete 
+                          ? 'text-red-600 hover:text-red-700 hover:border-red-300' 
+                          : 'text-gray-400 cursor-not-allowed opacity-50'
+                        }`}
+                        title={canDelete ? "Delete School" : "Permission Denied - Only main admin can delete"}
+                        disabled={!canDelete}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {canDelete ? <Trash2 className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
                       </Button>
                     </div>
                   </td>

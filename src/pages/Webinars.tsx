@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import StudentHeader from '../components/StudentHeader';
+import StudentAuthGuard from '../components/auth/StudentAuthGuard';
 
 interface Webinar {
   id: string;
@@ -42,6 +43,9 @@ interface Webinar {
   targetStateId?: string;
   targetDistrictId?: string;
   targetSchoolId?: string;
+  speakerId?: string;
+  speakerName?: string;
+  speakerImage?: string;
   isActive: boolean;
   viewCount?: number;
 }
@@ -57,7 +61,7 @@ interface StudentData {
 }
 
 const Webinars = () => {
-  const [user] = useAuthState(auth);
+  const [user, authLoading, authError] = useAuthState(auth);
   const navigate = useNavigate();
   const [webinars, setWebinars] = useState<Webinar[]>([]);
   const [studentData, setStudentData] = useState<StudentData | null>(null);
@@ -69,24 +73,33 @@ const Webinars = () => {
   const [showVideoModal, setShowVideoModal] = useState(false);
 
   useEffect(() => {
-    console.log('Webinars component mounted, user:', user);
+    console.log('Webinars component mounted, user:', user, 'authLoading:', authLoading);
+    
+    // Don't do anything while auth is still loading
+    if (authLoading) {
+      return;
+    }
+    
+    // If there's an auth error, show it
+    if (authError) {
+      setError('Authentication error. Please try logging in again.');
+      setLoading(false);
+      return;
+    }
+    
     if (user) {
       fetchStudentData();
     } else {
-      // If no user, still try to fetch public webinars
-      setLoading(false);
-      setError('Please log in to view personalized webinars');
-      // Still fetch webinars that are public (targetType: 'all')
-      fetchWebinars();
+      // If no user after auth loading is complete, still fetch public webinars without showing error
+      console.log('No user found after auth loading complete, fetching public webinars');
+      setLoading(true); // Keep loading while fetching webinars
+      fetchWebinars(); // Fetch public webinars
     }
-  }, [user]);
+  }, [user, authLoading, authError]);
 
   useEffect(() => {
     console.log('Student data changed:', studentData);
     if (studentData) {
-      fetchWebinars();
-    } else if (!loading && !user) {
-      // If we're not loading and no user, try to fetch public webinars anyway
       fetchWebinars();
     }
   }, [studentData]);
@@ -114,6 +127,8 @@ const Webinars = () => {
           districtName: data.districtName || '',
           schoolName: data.schoolName || ''
         });
+        // Clear any previous errors when data loads successfully
+        setError(null);
       } else {
         console.log('No student data found, creating default data');
         // Create default student data if none exists
@@ -127,20 +142,29 @@ const Webinars = () => {
           schoolName: ''
         };
         setStudentData(defaultData);
+        // Clear any previous errors
+        setError(null);
       }
     } catch (error) {
       console.error('Error fetching student data:', error);
-      setError('Error loading student data');
-      // Set default data even on error
-      setStudentData({
-        name: user.email?.split('@')[0] || 'Student',
-        studentId: user.uid,
-        districtCode: '',
-        schoolCode: '',
-        state: '',
-        districtName: '',
-        schoolName: ''
-      });
+      // Only set error if it's a critical error, not just missing data
+      if (error instanceof Error && error.message.includes('permission-denied')) {
+        setError('Access denied. Please check your login credentials.');
+      } else {
+        // For other errors, still set default data and continue
+        console.log('Setting default data despite error');
+        setStudentData({
+          name: user.email?.split('@')[0] || 'Student',
+          studentId: user.uid,
+          districtCode: '',
+          schoolCode: '',
+          state: '',
+          districtName: '',
+          schoolName: ''
+        });
+        // Clear error to allow the app to continue working
+        setError(null);
+      }
     }
   };
 
@@ -148,6 +172,8 @@ const Webinars = () => {
     try {
       console.log('Fetching webinars...');
       console.log('Current student data:', studentData);
+      console.log('Current user:', user);
+      
       const webinarsSnapshot = await getDocs(collection(db, 'webinars'));
       const allWebinars: Webinar[] = [];
       
@@ -156,29 +182,12 @@ const Webinars = () => {
       webinarsSnapshot.forEach(doc => {
         const webinarData = { id: doc.id, ...doc.data() } as Webinar;
         console.log('Processing webinar:', webinarData.title);
-        console.log('Webinar details:', {
-          title: webinarData.title,
-          isActive: webinarData.isActive,
-          audienceType: webinarData.audienceType,
-          targetType: webinarData.targetType,
-          targetStateId: webinarData.targetStateId,
-          targetDistrictId: webinarData.targetDistrictId,
-          targetSchoolId: webinarData.targetSchoolId
-        });
         
         // Check each filter condition
         const isActiveCheck = webinarData.isActive;
         const isStudentAudience = webinarData.audienceType === 'students';
         const isParentAudience = webinarData.audienceType === 'parents';
         const isRelevantAudience = isStudentAudience || isParentAudience; // Students can see both types
-        
-        console.log('Filter checks:', {
-          isActive: isActiveCheck,
-          isStudentAudience: isStudentAudience,
-          isParentAudience: isParentAudience,
-          isRelevantAudience: isRelevantAudience,
-          targetType: webinarData.targetType
-        });
         
         if (isActiveCheck && isRelevantAudience) {
           let shouldInclude = false;
@@ -187,17 +196,16 @@ const Webinars = () => {
           if (webinarData.targetType === 'all') {
             shouldInclude = true;
             reason = 'Target type is "all"';
-          } else if (!studentData) {
-            // If no student data, only show 'all' webinars
-            shouldInclude = false;
-            reason = 'No student data available';
+          } else if (!user || !studentData) {
+            // If no user or student data, only show 'all' webinars
+            shouldInclude = webinarData.targetType === 'all';
+            reason = 'No user/student data - only showing "all" webinars';
           } else {
             // Check location-based targeting
             const hasLocationData = studentData.state || studentData.districtCode || studentData.schoolCode;
             
             if (!hasLocationData) {
               // If student has no location data, show all webinars as fallback
-              // This helps students who haven't completed their profile
               shouldInclude = true;
               reason = 'Student has no location data - showing all webinars as fallback';
             } else if (webinarData.targetType === 'state' && webinarData.targetStateId === studentData.state) {
@@ -211,11 +219,7 @@ const Webinars = () => {
               reason = `School match: ${webinarData.targetSchoolId} === ${studentData.schoolCode}`;
             } else {
               shouldInclude = false;
-              reason = `No location match - Target: ${webinarData.targetType}, Student: ${JSON.stringify({
-                state: studentData?.state,
-                districtCode: studentData?.districtCode,
-                schoolCode: studentData?.schoolCode
-              })}`;
+              reason = `No location match - Target: ${webinarData.targetType}`;
             }
           }
           
@@ -225,7 +229,7 @@ const Webinars = () => {
             allWebinars.push(webinarData);
           }
         } else {
-          console.log(`Webinar "${webinarData.title}" filtered out - Active: ${isActiveCheck}, Student audience: ${isStudentAudience}`);
+          console.log(`Webinar "${webinarData.title}" filtered out - Active: ${isActiveCheck}, Relevant audience: ${isRelevantAudience}`);
         }
       });
 
@@ -236,11 +240,22 @@ const Webinars = () => {
         return dateB.getTime() - dateA.getTime();
       });
 
-      console.log('Final filtered webinars for student:', allWebinars);
+      console.log('Final filtered webinars:', allWebinars);
       setWebinars(allWebinars);
+      
+      // Clear any previous errors when webinars load successfully
+      setError(null);
     } catch (error) {
       console.error('Error fetching webinars:', error);
-      setError('Error loading webinars');
+      // Only set error if it's a critical error that prevents loading
+      if (error instanceof Error && (error.message.includes('permission-denied') || error.message.includes('network'))) {
+        setError('Error loading webinars. Please check your connection and try again.');
+      } else {
+        // For other errors, log but don't show error to user
+        console.log('Non-critical error, continuing with empty webinars list');
+        setWebinars([]);
+        setError(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -516,7 +531,7 @@ const Webinars = () => {
                     </p>
                   )}
 
-                  <div className="space-y-2 mb-4">
+                  <div className="space-y-3 mb-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Calendar className="w-4 h-4" />
                       {formatDate(webinar.scheduledDate)}
@@ -525,12 +540,35 @@ const Webinars = () => {
                       <Clock className="w-4 h-4" />
                       {webinar.duration} minutes
                     </div>
-                    {webinar.viewCount && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Users className="w-4 h-4" />
-                        {webinar.viewCount} views
+                    
+                    {/* Enhanced Speaker Section */}
+                    {webinar.speakerName && (
+                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <div className="flex items-center gap-3">
+                          {webinar.speakerImage ? (
+                            <img
+                              src={webinar.speakerImage}
+                              alt={webinar.speakerName}
+                              className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
+                              onError={(e) => {
+                                e.currentTarget.src = '/placeholder.svg';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                              <User className="w-6 h-6 text-white" />
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">{webinar.speakerName}</p>
+                            <p className="text-xs text-gray-500">Session Speaker</p>
+                          </div>
+                        </div>
                       </div>
                     )}
+                    
+                    {/* Only show view count if it's greater than 0 */}
+                   
                   </div>
 
                   <button 

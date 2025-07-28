@@ -59,6 +59,9 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({
     return 'from-purple-400 to-pink-500';
   };
 
+  const showStats = (totalPoints !== undefined || propTotalPoints !== undefined) && 
+                   (currentStreak !== undefined || propCurrentStreak !== undefined);
+
   return (
     <motion.header
       initial={{ y: -100, opacity: 0 }}
@@ -66,8 +69,80 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({
       transition={{ type: 'spring', stiffness: 100 }}
       className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-white/20 shadow-lg"
     >
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
+      <div className="container mx-auto px-4 py-2 md:py-4">
+        {/* Mobile Layout - Two lines */}
+        <div className="md:hidden">
+          {/* First line - Logo on left, Profile on right */}
+          <div className="flex items-center justify-between mb-2">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center"
+            >
+              <img
+                src="/lovable-uploads/7f6ab2a8-9863-4f75-ae5a-f2b087639caa.png"
+                alt="MindLeap - Ignite Young Minds"
+                className="h-8 w-auto cursor-pointer"
+                onClick={() => navigate('/')}
+              />
+            </motion.div>
+
+            {/* Profile - click to open modal */}
+            <ProfileModal studentData={studentData} loading={loading} />
+          </div>
+
+          {/* Second line - Back button on left, Points + Streak on right */}
+          <div className="flex items-center justify-between">
+            {/* Back button */}
+            {showBackButton && (
+              <motion.button
+                onClick={() => navigate(backTo)}
+                className="flex items-center gap-1 text-gray-700 hover:text-purple-600 transition-colors text-sm"
+                whileHover={{ x: -3 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="font-medium text-xs">Back</span>
+              </motion.button>
+            )}
+
+            {/* Points + Streak on right */}
+            {showStats && (
+              <motion.div
+                className="flex items-center gap-2"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <div className="flex items-center gap-1 bg-gradient-to-r from-yellow-100 to-orange-100 px-2 py-1 rounded-full">
+                  <Trophy className="w-3 h-3 text-yellow-600" />
+                  <span className="font-bold text-yellow-800 text-xs">
+                    {loading ? '...' : `${totalPoints ?? propTotalPoints} Points`}
+                  </span>
+                </div>
+
+                <div
+                  className={`flex items-center gap-1 bg-gradient-to-r ${getStreakColor(
+                    currentStreak ?? propCurrentStreak
+                  )} px-2 py-1 rounded-full text-white`}
+                >
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Flame className="w-3 h-3" />
+                  </motion.div>
+                  <span className="font-bold text-xs">
+                    {loading ? '...' : `${currentStreak ?? propCurrentStreak} Day Streak`}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop Layout - Single line */}
+        <div className="hidden md:flex items-center justify-between">
           {/* Left section – Logo + optional back button */}
           <div className="flex items-center gap-4">
             <motion.div
@@ -78,7 +153,7 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({
               <img
                 src="/lovable-uploads/7f6ab2a8-9863-4f75-ae5a-f2b087639caa.png"
                 alt="MindLeap - Ignite Young Minds"
-                className="h-12 w-auto cursor-pointer"
+                className="h-16 w-auto cursor-pointer"
                 onClick={() => navigate('/')}
               />
             </motion.div>
@@ -100,8 +175,7 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({
           {/* Right section – Stats and Profile */}
           <div className="flex items-center gap-4">
             {/* Use hook data if available, otherwise fall back to props */}
-            {(totalPoints !== undefined || propTotalPoints !== undefined) && 
-             (currentStreak !== undefined || propCurrentStreak !== undefined) && (
+            {showStats && (
               <motion.div
                 className="flex items-center gap-4"
                 initial={{ opacity: 0, scale: 0.8 }}

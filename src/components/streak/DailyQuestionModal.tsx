@@ -347,7 +347,12 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
             >
               <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-3 sm:p-4 rounded-xl border border-blue-100">
                 <div 
-                  className="text-sm sm:text-base md:text-lg font-semibold text-gray-800 leading-snug"
+                  className="text-sm sm:text-base md:text-lg font-semibold text-gray-800 leading-snug break-words"
+                  style={{
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
+                    maxWidth: '100%'
+                  }}
                   dangerouslySetInnerHTML={{ 
                     __html: isQuestionLong(question.question) && !isQuestionExpanded 
                       ? truncateQuestion(question.question) 
@@ -563,7 +568,7 @@ const DailyQuestionModal = ({ isOpen, onClose, question, onSubmit }: DailyQuesti
                     transition={{ duration: 2, repeat: Infinity }}
                   >
                     <Star className="w-6 h-6" />
-                    {selectedOption === question.correctOption ? '+200 Points' : '0 Points'}
+                    {selectedOption === question.correctOption ? '+200 Points' : '+100 Points'}
                     <Star className="w-6 h-6" />
                   </motion.div>
                 </motion.div>

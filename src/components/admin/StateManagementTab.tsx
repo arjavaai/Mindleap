@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, MapPin, Edit, Trash2, Eye, AlertTriangle } from 'lucide-react';
+import { Plus, MapPin, Edit, Trash2, Eye, AlertTriangle, Shield } from 'lucide-react';
 import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Button } from '../ui/button';
@@ -9,6 +9,7 @@ import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { useAdminPermissions } from './AdminContext';
 
 interface District {
   districtName: string;
@@ -24,6 +25,7 @@ interface State {
 }
 
 const StateManagementTab = () => {
+  const { canDelete } = useAdminPermissions();
   const [states, setStates] = useState<State[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
@@ -271,6 +273,15 @@ const StateManagementTab = () => {
   };
 
   const handleDeleteState = async (state: State) => {
+    if (!canDelete) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to delete states. Only the main administrator can perform delete operations.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       await deleteDoc(doc(db, 'states', state.id));
       setStates(prev => prev.filter(s => s.id !== state.id));
@@ -408,9 +419,14 @@ const StateManagementTab = () => {
                       onClick={() => setDeleteConfirmation(state)}
                       variant="outline"
                       size="sm"
-                      className="text-red-600 hover:bg-red-50 w-8 h-8 p-0 flex items-center justify-center flex-shrink-0"
+                      className={`${canDelete 
+                        ? 'text-red-600 hover:bg-red-50' 
+                        : 'text-gray-400 cursor-not-allowed opacity-50'
+                      } w-8 h-8 p-0 flex items-center justify-center flex-shrink-0`}
+                      disabled={!canDelete}
+                      title={canDelete ? "Delete state" : "Permission Denied - Only main admin can delete"}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {canDelete ? <Trash2 className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
                     </Button>
                   </div>
                 </div>

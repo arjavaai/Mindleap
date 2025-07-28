@@ -1,27 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Plus, 
+    Plus, 
   Edit, 
   Trash2, 
   Eye, 
   Clock, 
   Users, 
   School, 
-  MapPin,
-  Globe,
-  Video,
-  Calendar,
-  CheckCircle,
-  XCircle,
-  ArrowRight,
-  ArrowLeft,
-  ExternalLink,
-  BarChart3,
-  Download,
-  Play,
-  Pause,
-  User
+  MapPin, 
+  Globe, 
+  Video, 
+  Calendar, 
+  CheckCircle, 
+  XCircle, 
+  ArrowRight, 
+  ArrowLeft, 
+  ExternalLink, 
+  BarChart3, 
+  Download, 
+  Play, 
+  Pause, 
+  User,
+  Upload,
+  Image,
+  Shield
 } from 'lucide-react';
 import { 
   collection, 
@@ -34,7 +37,23 @@ import {
   where, 
   orderBy 
 } from 'firebase/firestore';
+import { 
+  getStorage, 
+  ref, 
+  uploadBytes, 
+  getDownloadURL 
+} from 'firebase/storage';
 import { db } from '../../lib/firebase';
+import { useAdminPermissions } from './AdminContext';
+
+interface Speaker {
+  id: string;
+  name: string;
+  profileImage: string;
+  bio?: string;
+  expertise?: string;
+  createdAt: any;
+}
 
 interface Webinar {
   id: string;
@@ -48,6 +67,9 @@ interface Webinar {
   targetStateId?: string;
   targetDistrictId?: string;
   targetSchoolId?: string;
+  speakerId?: string;
+  speakerName?: string;
+  speakerImage?: string;
   isActive: boolean;
   createdAt: any;
   createdBy: string;
@@ -87,10 +109,14 @@ interface School {
 }
 
 const WebinarManagementTab = () => {
+  const { canDelete } = useAdminPermissions();
   const [webinars, setWebinars] = useState<Webinar[]>([]);
   const [states, setStates] = useState<State[]>([]);
+  const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
+  const [showSpeakerModal, setShowSpeakerModal] = useState(false);
+  const [showSpeakersList, setShowSpeakersList] = useState(false);
   const [selectedWebinar, setSelectedWebinar] = useState<Webinar | null>(null);
   const [webinarViews, setWebinarViews] = useState<WebinarView[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,12 +137,25 @@ const WebinarManagementTab = () => {
     targetStateId: '',
     targetDistrictId: '',
     targetSchoolId: '',
+    speakerId: '',
     isActive: true
   });
+
+  const [speakerData, setSpeakerData] = useState({
+    name: '',
+    profileImage: '',
+    bio: '',
+    expertise: ''
+  });
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     fetchWebinars();
     fetchStates();
+    fetchSpeakers();
   }, []);
 
   const fetchWebinars = async () => {
@@ -178,6 +217,100 @@ const WebinarManagementTab = () => {
     }
   };
 
+  const fetchSpeakers = async () => {
+    try {
+      const speakersSnapshot = await getDocs(collection(db, 'speakers'));
+      const speakersData = speakersSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Speaker[];
+      setSpeakers(speakersData);
+    } catch (error) {
+      console.error('Error fetching speakers:', error);
+    }
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size should be less than 5MB');
+        return;
+      }
+      
+      setImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadImageToFirebase = async (file: File): Promise<string> => {
+    const storage = getStorage();
+    const timestamp = Date.now();
+    const fileName = `speakers/${timestamp}_${file.name}`;
+    const storageRef = ref(storage, fileName);
+    
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    return downloadURL;
+  };
+
+  const handleAddSpeaker = async () => {
+    if (!speakerData.name.trim()) {
+      alert('Please enter speaker name');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      let profileImageUrl = '';
+      
+      // Upload image if selected
+      if (imageFile) {
+        setUploadingImage(true);
+        profileImageUrl = await uploadImageToFirebase(imageFile);
+      }
+
+      await addDoc(collection(db, 'speakers'), {
+        ...speakerData,
+        profileImage: profileImageUrl,
+        createdAt: new Date()
+      });
+      
+      // Reset form
+      setSpeakerData({
+        name: '',
+        profileImage: '',
+        bio: '',
+        expertise: ''
+      });
+      setImageFile(null);
+      setImagePreview('');
+      
+      await fetchSpeakers();
+      setShowSpeakerModal(false);
+      alert('Speaker added successfully!');
+    } catch (error) {
+      console.error('Error adding speaker:', error);
+      alert('Error adding speaker');
+    } finally {
+      setSubmitting(false);
+      setUploadingImage(false);
+    }
+  };
+
   const resetForm = () => {
     setWebinarData({
       title: '',
@@ -191,6 +324,7 @@ const WebinarManagementTab = () => {
       targetStateId: '',
       targetDistrictId: '',
       targetSchoolId: '',
+      speakerId: '',
       isActive: true
     });
     setEditingWebinar(null);
@@ -211,6 +345,7 @@ const WebinarManagementTab = () => {
       targetStateId: webinar.targetStateId || '',
       targetDistrictId: webinar.targetDistrictId || '',
       targetSchoolId: webinar.targetSchoolId || '',
+      speakerId: webinar.speakerId || '',
       isActive: webinar.isActive
     });
     setShowCreateModal(true);
@@ -226,6 +361,9 @@ const WebinarManagementTab = () => {
     try {
       const scheduledDateTime = new Date(`${webinarData.scheduledDate}T${webinarData.scheduledTime || '00:00'}`);
       
+      // Get speaker information if selected
+      const selectedSpeaker = webinarData.speakerId ? speakers.find(s => s.id === webinarData.speakerId) : null;
+
       const webinarPayload = {
         title: webinarData.title,
         description: webinarData.description,
@@ -237,6 +375,11 @@ const WebinarManagementTab = () => {
         ...(webinarData.targetStateId && { targetStateId: webinarData.targetStateId }),
         ...(webinarData.targetDistrictId && { targetDistrictId: webinarData.targetDistrictId }),
         ...(webinarData.targetSchoolId && { targetSchoolId: webinarData.targetSchoolId }),
+        ...(selectedSpeaker && {
+          speakerId: selectedSpeaker.id,
+          speakerName: selectedSpeaker.name,
+          speakerImage: selectedSpeaker.profileImage
+        }),
         isActive: webinarData.isActive,
         viewCount: 0,
         completedCount: 0,
@@ -262,6 +405,11 @@ const WebinarManagementTab = () => {
   };
 
   const handleDeleteWebinar = async (webinarId: string) => {
+    if (!canDelete) {
+      alert('Permission Denied: You don\'t have permission to delete webinars. Only the main administrator can perform delete operations.');
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this webinar?')) return;
 
     try {
@@ -385,16 +533,25 @@ const WebinarManagementTab = () => {
             <p className="text-gray-600">Create and manage webinars for students and parents</p>
           </div>
         </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowCreateModal(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Create Webinar
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowSpeakerModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <User className="w-4 h-4" />
+            Add Speaker
+          </button>
+          <button
+            onClick={() => {
+              resetForm();
+              setShowCreateModal(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Create Webinar
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -509,10 +666,14 @@ const WebinarManagementTab = () => {
                       </button>
                       <button
                         onClick={() => handleDeleteWebinar(webinar.id)}
-                        className="text-red-600 hover:text-red-900 p-1"
-                        title="Delete"
+                        className={`${canDelete 
+                          ? 'text-red-600 hover:text-red-900' 
+                          : 'text-gray-400 cursor-not-allowed opacity-50'
+                        } p-1`}
+                        title={canDelete ? "Delete" : "Permission Denied - Only main admin can delete"}
+                        disabled={!canDelete}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {canDelete ? <Trash2 className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
                       </button>
                     </div>
                   </td>
@@ -634,6 +795,25 @@ const WebinarManagementTab = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       />
                     </div>
+                  </div>
+
+                  {/* Speaker Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Speaker
+                    </label>
+                    <select
+                      value={webinarData.speakerId}
+                      onChange={(e) => setWebinarData({ ...webinarData, speakerId: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      <option value="">No Speaker Selected</option>
+                      {speakers.map((speaker) => (
+                        <option key={speaker.id} value={speaker.id}>
+                          {speaker.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Audience Type */}
@@ -930,6 +1110,199 @@ const WebinarManagementTab = () => {
                     </table>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Speaker Modal */}
+      <AnimatePresence>
+        {showSpeakerModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowSpeakerModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    Add New Speaker
+                  </h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowSpeakersList(!showSpeakersList)}
+                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                    >
+                      {showSpeakersList ? 'Hide' : 'Show'} Speakers List
+                    </button>
+                    <button
+                      onClick={() => setShowSpeakerModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Speaker Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Speaker Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={speakerData.name}
+                      onChange={(e) => setSpeakerData({ ...speakerData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      placeholder="Enter speaker name"
+                    />
+                  </div>
+
+                  {/* Profile Image Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Profile Image
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            {uploadingImage ? (
+                              <div className="flex flex-col items-center">
+                                <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                <p className="text-sm text-gray-500">Uploading...</p>
+                              </div>
+                            ) : (
+                              <>
+                                <Upload className="w-8 h-8 mb-2 text-gray-400" />
+                                <p className="mb-2 text-sm text-gray-500">
+                                  <span className="font-semibold">Click to upload</span> or drag and drop
+                                </p>
+                                <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+                              </>
+                            )}
+                          </div>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            disabled={uploadingImage}
+                          />
+                        </label>
+                      </div>
+                      
+                      {/* Image Preview */}
+                      {imagePreview && (
+                        <div className="flex-shrink-0">
+                          <div className="relative">
+                            <img
+                              src={imagePreview}
+                              alt="Speaker preview"
+                              className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                            />
+                            <button
+                              onClick={() => {
+                                setImageFile(null);
+                                setImagePreview('');
+                              }}
+                              className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bio */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Bio
+                    </label>
+                    <textarea
+                      value={speakerData.bio}
+                      onChange={(e) => setSpeakerData({ ...speakerData, bio: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      rows={3}
+                      placeholder="Brief bio about the speaker"
+                    />
+                  </div>
+
+                  {/* Expertise */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Expertise
+                    </label>
+                    <input
+                      type="text"
+                      value={speakerData.expertise}
+                      onChange={(e) => setSpeakerData({ ...speakerData, expertise: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      placeholder="e.g., Mathematics, Science, Career Guidance"
+                    />
+                  </div>
+
+                  {/* Speakers List */}
+                  {showSpeakersList && (
+                    <div className="border-t pt-4 mt-6">
+                      <h4 className="text-lg font-medium text-gray-900 mb-3">Existing Speakers</h4>
+                      {speakers.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">No speakers added yet</p>
+                      ) : (
+                        <div className="space-y-3 max-h-60 overflow-y-auto">
+                          {speakers.map((speaker) => (
+                            <div key={speaker.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                              <img
+                                src={speaker.profileImage || '/placeholder.svg'}
+                                alt={speaker.name}
+                                className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                                onError={(e) => {
+                                  e.currentTarget.src = '/placeholder.svg';
+                                }}
+                              />
+                              <div className="flex-1">
+                                <h5 className="font-medium text-gray-900">{speaker.name}</h5>
+                                {speaker.expertise && (
+                                  <p className="text-sm text-gray-600">{speaker.expertise}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={() => setShowSpeakerModal(false)}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAddSpeaker}
+                      disabled={submitting}
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                    >
+                      {submitting ? 'Adding...' : 'Add Speaker'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </motion.div>

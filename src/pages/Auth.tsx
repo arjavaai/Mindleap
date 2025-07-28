@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import AuthInterface from '../components/auth/AuthInterface';
+import Navbar from '../components/Navbar';
 
 const Auth = () => {
   useEffect(() => {
@@ -11,7 +12,12 @@ const Auth = () => {
     };
   }, []);
 
-  return <AuthInterface />;
+  return (
+    <>
+      <Navbar />
+      <AuthInterface />
+    </>
+  );
 };
 
 export default Auth;

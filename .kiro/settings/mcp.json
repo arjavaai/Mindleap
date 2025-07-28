@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "firebase": {
+      "command": "npx",
+      "args": ["-y", "firebase-tools@latest", "experimental", "mcp"],
+      "env": {
+        "GOOGLE_PROJECT_ID": "mindleap-website",
+        "VITE_FIREBASE_API_KEY": "AIzaSyB6KtqRx0AswJgvLmTZraWM2_xLiqi-ly0",
+        "VITE_FIREBASE_AUTH_DOMAIN": "mindleap-website.firebaseapp.com",
+        "VITE_FIREBASE_PROJECT_ID": "mindleap-website",
+        "VITE_FIREBASE_STORAGE_BUCKET": "mindleap-website",
+        "VITE_FIREBASE_MESSAGING_SENDER_ID": "12876004450",
+        "VITE_FIREBASE_APP_ID": "1:12876004450:web:cfd8ed8e6f1afc18eda53b"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}

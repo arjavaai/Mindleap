@@ -59,9 +59,14 @@ const StudentLoginForm = ({ onToggleForm }: StudentLoginFormProps) => {
     setIsLoading(true);
     
     try {
-      console.log('Attempting login with Student ID:', formData.studentId);
+      console.log('🔍 Student Login Debug - Starting authentication process');
+      console.log('📝 Form Data:', {
+        studentId: formData.studentId,
+        password: formData.password ? '***' : 'MISSING'
+      });
       
       // First, verify the student exists in our database
+      console.log('🔍 Checking if student exists in Firestore...');
       const studentsQuery = query(
         collection(db, 'students'), 
         where('studentId', '==', formData.studentId)
@@ -70,7 +75,7 @@ const StudentLoginForm = ({ onToggleForm }: StudentLoginFormProps) => {
       const studentSnapshot = await getDocs(studentsQuery);
       
       if (studentSnapshot.empty) {
-        console.log('Student not found in database for ID:', formData.studentId);
+        console.log('❌ Student not found in Firestore database for ID:', formData.studentId);
         toast({
           title: "Student Not Found",
           description: "Student ID not found in our records. Please check your Student ID.",
@@ -81,15 +86,19 @@ const StudentLoginForm = ({ onToggleForm }: StudentLoginFormProps) => {
       }
 
       const studentData = studentSnapshot.docs[0].data();
-      console.log('Student found in database:', {
+      console.log('✅ Student found in Firestore:', {
         name: studentData.name,
         email: studentData.email,
-        hasPassword: !!studentData.password
+        systemEmail: studentData.systemEmail,
+        hasPassword: !!studentData.password,
+        uid: studentData.uid
       });
       
       // Check if the password matches what's stored in our database
       if (studentData.password !== formData.password) {
-        console.log('Password mismatch for student:', studentData.name);
+        console.log('❌ Password mismatch for student:', studentData.name);
+        console.log('Expected password:', studentData.password ? '***' : 'NO PASSWORD SET');
+        console.log('Provided password:', formData.password ? '***' : 'NO PASSWORD PROVIDED');
         toast({
           title: "Invalid Password",
           description: "Incorrect password. Please try again.",
@@ -99,14 +108,16 @@ const StudentLoginForm = ({ onToggleForm }: StudentLoginFormProps) => {
         return;
       }
 
+      console.log('✅ Password matches Firestore record');
+
       // Use the actual email that was used to create the Firebase Auth account
-      // This could be either a custom email or the system email format
-      const email = studentData.email || `${formData.studentId}@mindleap.edu`;
-      console.log('Attempting Firebase Auth with email:', email);
+      // Try the custom email first, then fall back to system email
+      const authEmail = studentData.email || studentData.systemEmail || `${formData.studentId}@mindleap.edu`;
+      console.log('🔑 Attempting Firebase Auth with email:', authEmail);
       
-      await signInWithEmailAndPassword(auth, email, formData.password);
+      await signInWithEmailAndPassword(auth, authEmail, formData.password);
       
-      console.log('Login successful for student:', studentData.name);
+      console.log('✅ Firebase Auth login successful for student:', studentData.name);
       
       toast({
         title: "Welcome back!",
@@ -116,25 +127,34 @@ const StudentLoginForm = ({ onToggleForm }: StudentLoginFormProps) => {
       // Redirect to dashboard
       window.location.href = '/dashboard';
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('❌ Student Login Error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
       
       let errorMessage = "Login failed. Please check your credentials.";
       
       switch (error.code) {
         case 'auth/user-not-found':
-          errorMessage = "Firebase Auth account not found. Please contact admin.";
+          errorMessage = "Firebase Auth account not found. This student may need to be recreated by admin.";
+          console.log('💡 Suggestion: Ask admin to recreate this student account');
           break;
         case 'auth/wrong-password':
           errorMessage = "Incorrect password. Please try again.";
           break;
         case 'auth/invalid-email':
-          errorMessage = "Please enter a valid Student ID.";
+          errorMessage = "Invalid email format for this Student ID.";
           break;
         case 'auth/too-many-requests':
           errorMessage = "Too many failed attempts. Please try again later.";
           break;
         case 'auth/user-disabled':
           errorMessage = "Your account has been disabled. Please contact admin.";
+          break;
+        case 'auth/invalid-credential':
+          errorMessage = "Invalid credentials. The password may be incorrect or the account may not exist.";
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = "Network error. Please check your internet connection.";
           break;
       }
       

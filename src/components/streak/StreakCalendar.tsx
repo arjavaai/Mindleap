@@ -17,30 +17,71 @@ interface DailyStreakRecord {
 
 interface StreakCalendarProps {
   records: Record<string, DailyStreakRecord>;
+  onDateClick?: (date: string) => void;
 }
 
-const StreakCalendar: React.FC<StreakCalendarProps> = ({ records }) => {
+const StreakCalendar: React.FC<StreakCalendarProps> = ({ records, onDateClick }) => {
   const today = new Date();
   const monthStart = startOfMonth(today);
   const monthEnd = endOfMonth(today);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
+  // Helper function to check if two dates are in the same week
+  const isInSameWeek = (date1: Date, date2: Date) => {
+    const getWeekStart = (date: Date) => {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = d.getDate() - day;
+      return new Date(d.setDate(diff));
+    };
+    
+    const week1Start = getWeekStart(date1);
+    const week2Start = getWeekStart(date2);
+    return week1Start.getTime() === week2Start.getTime();
+  };
+
   const getDayStatus = (day: Date) => {
     const dayString = format(day, 'yyyy-MM-dd');
     const record = records[dayString];
+    const isCurrentWeek = isInSameWeek(day, today);
     
     if (isToday(day) && !record) return 'today-pending';
+    if (!record && isCurrentWeek) return 'current-week-pending';
     if (!record) return 'not-answered';
     return record.status;
   };
 
-  const getDayColor = (status: string) => {
+  const canClickDate = (day: Date) => {
+    const dayString = format(day, 'yyyy-MM-dd');
+    const record = records[dayString];
+    const isCurrentWeek = isInSameWeek(day, today);
+    const isPastDate = day < today;
+    
+    // Can click if:
+    // 1. It's today and no record
+    // 2. It's in current week, past date, and no record (missed question)
+    return (isToday(day) && !record) || (isCurrentWeek && isPastDate && !record);
+  };
+
+  const handleDateClick = (day: Date) => {
+    if (!canClickDate(day) || !onDateClick) return;
+    
+    const dayString = format(day, 'yyyy-MM-dd');
+    onDateClick(dayString);
+  };
+
+  const getDayColor = (status: string, day: Date) => {
+    const clickable = canClickDate(day);
+    
     switch (status) {
       case 'correct': return 'bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-lg';
       case 'wrong': return 'bg-gradient-to-br from-red-400 to-pink-500 text-white shadow-lg';
       case 'skipped': return 'bg-gradient-to-br from-gray-400 to-gray-500 text-white shadow-lg';
-      case 'today-pending': return 'bg-gradient-to-br from-blue-400 to-indigo-500 text-white shadow-xl ring-4 ring-blue-200 animate-pulse';
-      default: return 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-500 hover:from-gray-200 hover:to-gray-300';
+      case 'today-pending': return 'bg-gradient-to-br from-blue-400 to-indigo-500 text-white shadow-xl ring-4 ring-blue-200 animate-pulse cursor-pointer';
+      case 'current-week-pending': return 'bg-gradient-to-br from-orange-300 to-yellow-400 text-white shadow-lg ring-2 ring-orange-200 cursor-pointer hover:from-orange-400 hover:to-yellow-500';
+      default: return clickable 
+        ? 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-500 hover:from-gray-200 hover:to-gray-300 cursor-pointer'
+        : 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-500';
     }
   };
 
@@ -174,8 +215,8 @@ const StreakCalendar: React.FC<StreakCalendarProps> = ({ records }) => {
               <motion.div
                 className={`
                   aspect-square flex flex-col items-center justify-center rounded-2xl text-sm font-bold
-                  transition-all duration-300 cursor-pointer relative overflow-hidden
-                  ${getDayColor(status)}
+                  transition-all duration-300 relative overflow-hidden
+                  ${getDayColor(status, day)}
                 `}
                 whileHover={{ 
                   scale: 1.1,
@@ -184,6 +225,7 @@ const StreakCalendar: React.FC<StreakCalendarProps> = ({ records }) => {
                 }}
                 whileTap={{ scale: 0.95 }}
                 title={getTooltipContent(day, status)}
+                onClick={() => handleDateClick(day)}
               >
                 {/* Animated background for special days */}
                 {isCurrentDay && (
@@ -244,7 +286,7 @@ const StreakCalendar: React.FC<StreakCalendarProps> = ({ records }) => {
 
       {/* Enhanced Legend */}
       <motion.div 
-        className="mt-8 grid grid-cols-2 gap-4"
+        className="mt-8 grid grid-cols-2 lg:grid-cols-3 gap-4"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
@@ -271,7 +313,7 @@ const StreakCalendar: React.FC<StreakCalendarProps> = ({ records }) => {
           </div>
           <div>
             <span className="font-semibold text-red-800">Wrong</span>
-            <p className="text-xs text-red-600">0 points</p>
+            <p className="text-xs text-red-600">+100 points</p>
           </div>
         </motion.div>
 
@@ -284,7 +326,20 @@ const StreakCalendar: React.FC<StreakCalendarProps> = ({ records }) => {
           </div>
           <div>
             <span className="font-semibold text-blue-800">Today</span>
-            <p className="text-xs text-blue-600">Pending challenge</p>
+            <p className="text-xs text-blue-600">Click to answer</p>
+          </div>
+        </motion.div>
+
+        <motion.div 
+          className="flex items-center gap-3 p-3 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl border border-orange-200"
+          whileHover={{ scale: 1.02 }}
+        >
+          <div className="w-6 h-6 bg-gradient-to-br from-orange-300 to-yellow-400 rounded-lg flex items-center justify-center ring-2 ring-orange-200">
+            <Clock className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <span className="font-semibold text-orange-800">Missed (This Week)</span>
+            <p className="text-xs text-orange-600">Click for +100 points</p>
           </div>
         </motion.div>
 
@@ -294,8 +349,8 @@ const StreakCalendar: React.FC<StreakCalendarProps> = ({ records }) => {
         >
           <div className="w-6 h-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg border border-gray-300"></div>
           <div>
-            <span className="font-semibold text-gray-700">Not Answered</span>
-            <p className="text-xs text-gray-500">No attempt</p>
+            <span className="font-semibold text-gray-700">Past Weeks</span>
+            <p className="text-xs text-gray-500">View only</p>
           </div>
         </motion.div>
       </motion.div>
