@@ -298,16 +298,7 @@ const ProfileDetails: React.FC<{ studentData: any; loading?: boolean }> = ({ stu
             </div>
           </div>
 
-          {/* Debug Info - Remove this in production */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-4 pt-2 border-t bg-gray-50 p-2 rounded text-xs">
-              <div className="text-gray-600 mb-1">Debug Info:</div>
-              <div className="text-gray-500">
-                User ID: {studentData.id || 'N/A'}<br/>
-                Data Keys: {Object.keys(studentData).join(', ')}
-              </div>
-            </div>
-          )}
+
         </>
       )}
     </div>

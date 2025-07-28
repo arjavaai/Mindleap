@@ -34,8 +34,6 @@ const Leaderboard = () => {
     if (!user) return;
     
     try {
-      console.log('🚀 Starting fresh leaderboard fetch...');
-      
       // Get current user's school information
       const currentUserDoc = await getDoc(doc(db, 'students', user.uid));
       let userSchoolCode = '';
@@ -43,7 +41,6 @@ const Leaderboard = () => {
         const userData = currentUserDoc.data();
         userSchoolCode = userData.schoolCode || userData.school || userData.districtCode || userData.district || '';
         setCurrentUserSchool(userSchoolCode);
-        console.log('Current user school code:', userSchoolCode);
       }
 
       // Get ALL students from the students collection
@@ -51,30 +48,19 @@ const Leaderboard = () => {
       const leaderboardData: LeaderboardStudent[] = [];
       const processedUIDs = new Set<string>(); // Prevent duplicates
       
-      console.log(`📊 Processing ${studentsSnapshot.docs.length} students...`);
-      
       for (const studentDoc of studentsSnapshot.docs) {
         const studentData = studentDoc.data();
         // Use the Firebase Auth UID stored in the document, not the document ID
         const studentUID = studentData.uid || studentDoc.id;
         
-        console.log(`🔍 Student: ${studentData.name}`, {
-          documentId: studentDoc.id,
-          storedUID: studentData.uid,
-          usingUID: studentUID,
-          hasUID: !!studentData.uid
-        });
-        
         // Skip if already processed (prevent duplicates)
         if (processedUIDs.has(studentUID)) {
-          console.log(`⚠️ Skipping duplicate UID: ${studentUID}`);
           continue;
         }
         processedUIDs.add(studentUID);
         
         // Skip invalid students
         if (!studentData.name || studentData.name.trim() === '' || studentData.name === 'Unknown Student') {
-          console.log(`⚠️ Skipping invalid student: ${studentData.name || 'No name'}`);
           continue;
         }
         
@@ -86,7 +72,6 @@ const Leaderboard = () => {
           studentData.district === userSchoolCode;
           
         if (!shouldInclude) {
-          console.log(`⚠️ Skipping student from different school: ${studentData.name}`);
           continue;
         }
         
@@ -114,7 +99,7 @@ const Leaderboard = () => {
             }
           }
         } catch (error) {
-          console.log(`Error fetching streak data for ${studentData.name}:`, error);
+          // Silently handle error - student will show 0 points
         }
         
         // Add to leaderboard
@@ -129,7 +114,7 @@ const Leaderboard = () => {
           profileSubtitle: getProfileSubtitle(totalPoints, currentStreak)
         });
         
-        console.log(`✅ Added: ${studentData.name} (${studentData.studentId}) - ${totalPoints} points`);
+
       }
       
       // Sort by points (highest first) and assign ranks
@@ -139,10 +124,7 @@ const Leaderboard = () => {
         rank: index + 1
       }));
       
-      console.log(`🏆 Final leaderboard: ${rankedStudents.length} students`);
-      rankedStudents.forEach((student, index) => {
-        console.log(`${index + 1}. ${student.name} (${student.studentId}) - ${student.dailyStreakScore} points`);
-      });
+
       
       setStudents(rankedStudents);
     } catch (error) {

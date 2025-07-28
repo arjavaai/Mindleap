@@ -10,7 +10,7 @@ import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import AddSubjectModal from './AddSubjectModal';
 import QuestionManagementScreen from './QuestionManagementScreen';
-import FirebaseDebugger from './FirebaseDebugger';
+
 
 interface Subject {
   id: string;
@@ -199,29 +199,26 @@ const DailyStreakQuestionsTab = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 md:mb-6">
         <div>
-          <h2 className="text-3xl font-bold text-gray-800 font-poppins">Streak Scheduler</h2>
-          <p className="text-gray-600 mt-1">Manage subjects and their scheduled days for daily streak challenges</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-800 font-poppins">Streak Scheduler</h2>
+          <p className="text-gray-600 mt-1 text-sm md:text-base">Manage subjects and their scheduled days for daily streak challenges</p>
         </div>
         <Button
           onClick={() => setIsAddSubjectModalOpen(true)}
-          className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105"
+          className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold px-4 md:px-6 py-2 md:py-3 rounded-xl transition-all duration-300 transform hover:scale-105 text-sm md:text-base"
         >
-          <Plus className="w-5 h-5 mr-2" />
+          <Plus className="w-4 h-4 md:w-5 md:h-5 mr-2" />
           Add Subject
         </Button>
       </div>
 
-      {/* Firebase Debugger */}
-      <div className="mb-8">
-        <FirebaseDebugger />
-      </div>
+
 
       {/* Subjects Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {subjects.length === 0 ? (
           <div className="col-span-full text-center py-12">
             <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />

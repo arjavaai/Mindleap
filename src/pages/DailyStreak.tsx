@@ -186,7 +186,6 @@ const DailyStreak = () => {
       // Get all questions for this subject
       const questionsSnapshot = await getDocs(collection(db, 'subjects', subjectId, 'questions'));
       if (questionsSnapshot.empty) {
-        console.log('No questions available for this subject');
         return;
       }
 
@@ -217,7 +216,7 @@ const DailyStreak = () => {
         correctAttempts: 0
       });
 
-      console.log(`Scheduled question ${selectedQuestion.id} for ${dateString}`);
+
     } catch (error) {
       console.error('Error scheduling question:', error);
     }
@@ -297,7 +296,6 @@ const DailyStreak = () => {
         }));
 
         if (questions.length === 0) {
-          console.log('No questions available for this subject');
           return null;
         }
 
@@ -505,7 +503,6 @@ const DailyStreak = () => {
       const subjectsSnapshot = await getDocs(subjectsQuery);
       
       if (subjectsSnapshot.empty) {
-        console.log('No subject scheduled for', dayName);
         return;
       }
 

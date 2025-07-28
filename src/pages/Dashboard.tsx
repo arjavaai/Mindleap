@@ -90,8 +90,7 @@ const Dashboard = () => {
         if (studentSnap.exists()) {
           const data = studentSnap.data();
           
-          // Debug: Log the student data to see what fields are available
-          console.log('Student data from Firestore:', data);
+
           
           // Set profile data for modal
           setProfileData(data);
@@ -276,8 +275,6 @@ const Dashboard = () => {
       navigate('/webinars');
     } else if (route === '/workshops') {
       navigate('/workshops');
-    } else {
-      console.log(`Navigate to ${route}`);
     }
   };
 

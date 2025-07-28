@@ -67,8 +67,7 @@ const SubAdminManagementTab = () => {
     'workshops',
     'contact-queries',
     'school-requests',
-    'questions',
-    'debug'
+    'questions'
   ];
 
   const permissionLabels = {
@@ -80,8 +79,7 @@ const SubAdminManagementTab = () => {
     workshops: 'Workshops',
     'contact-queries': 'Contact Queries',
     'school-requests': 'School Requests',
-    questions: 'Streak Scheduler',
-    debug: 'Debug Tools'
+    questions: 'Question Management'
   };
 
   useEffect(() => {
@@ -124,7 +122,6 @@ const SubAdminManagementTab = () => {
       
       // Sign out from secondary auth immediately to prevent admin logout
       await secondaryAuth.signOut();
-      console.log('✅ Sub-admin created successfully - Admin session preserved');
       
       // Add to sub-admins collection
       await addDoc(collection(db, 'subAdmins'), {
@@ -198,16 +195,16 @@ const SubAdminManagementTab = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Sub-Admin Management</h2>
-          <p className="text-gray-600">Manage sub-administrators and their permissions</p>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-800">Sub-Admin Management</h2>
+          <p className="text-gray-600 text-sm md:text-base">Manage sub-administrators and their permissions</p>
         </div>
         <Button 
           onClick={() => setShowForm(true)}
-          className="bg-orange-500 hover:bg-orange-600"
+          className="bg-orange-500 hover:bg-orange-600 text-sm md:text-base"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Sub-Admin
@@ -223,27 +220,28 @@ const SubAdminManagementTab = () => {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-lg border border-gray-200 p-6"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center">
-                  <Users className="w-6 h-6 text-white" />
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800">{subAdmin.email}</h3>
-                  <p className="text-sm text-gray-600">Role: {subAdmin.role}</p>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-gray-800 text-sm sm:text-base truncate">{subAdmin.email}</h3>
+                  <p className="text-xs sm:text-sm text-gray-600">Role: {subAdmin.role}</p>
                   <p className="text-xs text-gray-500">
                     Created: {subAdmin.createdAt.toLocaleDateString()}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={subAdmin.isActive ? "default" : "secondary"}>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Badge variant={subAdmin.isActive ? "default" : "secondary"} className="text-xs">
                   {subAdmin.isActive ? 'Active' : 'Inactive'}
                 </Badge>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleToggleActive(subAdmin.id, subAdmin.isActive)}
+                  className="h-8 w-8 p-0"
                 >
                   {subAdmin.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>
@@ -251,7 +249,7 @@ const SubAdminManagementTab = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => handleDeleteSubAdmin(subAdmin.id)}
-                  className="text-red-600 hover:text-red-700"
+                  className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
                 >
                   <X className="w-4 h-4" />
                 </Button>

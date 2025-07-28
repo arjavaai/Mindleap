@@ -175,11 +175,9 @@ const UsersTab = () => {
 
   useEffect(() => {
     const initializeData = async () => {
-      console.log('🚀 Initializing data...');
       await fetchStates();
       await fetchSchools();
       await fetchStudents(); // Fetch all students on initial load
-      console.log('✅ Initial data loading completed');
     };
     initializeData();
   }, []);
@@ -199,16 +197,7 @@ const UsersTab = () => {
 
   // Re-enrich students when states or schools data changes
   useEffect(() => {
-    console.log('🔍 Enrichment trigger check:', {
-      statesLength: states.length,
-      schoolsLength: schools.length,
-      studentsLength: students.length,
-      isEnriching,
-      shouldEnrich: states.length > 0 && schools.length > 0 && students.length > 0 && !isEnriching
-    });
-    
     if (states.length > 0 && schools.length > 0 && students.length > 0 && !isEnriching) {
-      console.log('🚀 Triggering student data enrichment...');
       enrichStudentData();
     }
   }, [states, schools, students, isEnriching]);
@@ -1218,35 +1207,27 @@ const UsersTab = () => {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center space-x-3">
-          <Users className="w-8 h-8 text-blue-600" />
+          <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
           <div>
-          <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
-            <p className="text-gray-600">Manage student accounts and data</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">User Management</h2>
+            <p className="text-gray-600 text-sm sm:text-base">Manage student accounts and data</p>
           </div>
         </div>
-        <div className="flex space-x-3">
-          <Button 
-            onClick={updateStudentsWithUIDs}
-            disabled={isLoading}
-            className="bg-orange-600 hover:bg-orange-700 text-white"
-          >
-            <Shield className="w-4 h-4 mr-2" />
-            {isLoading ? 'Updating...' : 'Fix Auth UIDs'}
-          </Button>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <Button 
             onClick={() => setIsBulkUploadOpen(true)}
-            className="bg-green-600 hover:bg-green-700 text-white"
+            className="bg-green-600 hover:bg-green-700 text-white text-sm sm:text-base"
           >
             <Upload className="w-4 h-4 mr-2" />
             Bulk Upload
           </Button>
           <Button 
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-blue-600 hover:bg-blue-700 text-white text-sm sm:text-base"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Student
@@ -1274,7 +1255,7 @@ const UsersTab = () => {
           </Button>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
           {/* Search */}
           <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -1345,21 +1326,6 @@ const UsersTab = () => {
               >
                 <FileDown className="w-4 h-4 mr-2" />
                 Export ({filteredStudents.length})
-              </Button>
-              
-              <Button 
-                onClick={() => {
-                  console.log('🔄 Manual enrichment triggered');
-                  setIsDataEnriched(false);
-                  setIsEnriching(false);
-                  enrichStudentData();
-                }}
-                variant="outline"
-                className="text-blue-600 hover:text-blue-700"
-                disabled={isEnriching}
-              >
-                                 <Upload className={`w-4 h-4 mr-2 ${isEnriching ? 'animate-spin' : ''}`} />
-                {isEnriching ? 'Enriching...' : 'Enrich Data'}
               </Button>
       </div>
       </motion.div>

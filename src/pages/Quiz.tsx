@@ -159,7 +159,7 @@ const Quiz = () => {
     try {
       if (!user) return;
       
-      console.log('Fetching student data for user:', user.uid, user.email);
+
       
       // Extract student ID from email (AP2503222002@mindleap.edu -> AP2503222002)
       let studentIdFromEmail = '';
@@ -167,26 +167,26 @@ const Quiz = () => {
         studentIdFromEmail = user.email.split('@')[0].toUpperCase();
       }
       
-      console.log('Extracted student ID from email:', studentIdFromEmail);
+
       
       // First try to find by user UID (for backward compatibility)
       const studentDoc = await getDoc(doc(db, 'students', user.uid));
       if (studentDoc.exists()) {
-        console.log('Found student data by UID:', studentDoc.data());
+
         setStudentData(studentDoc.data());
         return;
       }
       
       // Search by studentId field
       if (studentIdFromEmail) {
-        console.log('Searching for student by studentId:', studentIdFromEmail);
+
         const studentsRef = collection(db, 'students');
         const studentIdQuery = query(studentsRef, where('studentId', '==', studentIdFromEmail));
         const studentIdSnapshot = await getDocs(studentIdQuery);
         
         if (!studentIdSnapshot.empty) {
           const studentData = studentIdSnapshot.docs[0].data();
-          console.log('Found student data by studentId:', studentData);
+
           setStudentData(studentData);
           return;
         }
@@ -194,20 +194,20 @@ const Quiz = () => {
       
       // If not found by studentId, try by email
       if (user.email) {
-        console.log('Searching for student by email:', user.email);
+
         const studentsRef = collection(db, 'students');
         const emailQuery = query(studentsRef, where('email', '==', user.email));
         const emailSnapshot = await getDocs(emailQuery);
         
         if (!emailSnapshot.empty) {
           const studentData = emailSnapshot.docs[0].data();
-          console.log('Found student data by email:', studentData);
+
           setStudentData(studentData);
           return;
         }
       }
       
-      console.log('Student data not found for:', user.email);
+
       
     } catch (error) {
       console.error('Error fetching student data:', error);
@@ -219,11 +219,7 @@ const Quiz = () => {
       const quizzesRef = collection(db, 'quizzes');
       const quizzes: Quiz[] = [];
       
-      console.log('Fetching quizzes for user:', user?.uid);
-      console.log('Student data:', studentData);
-      console.log('Student schoolCode:', studentData?.schoolCode);
-      console.log('Student districtCode:', studentData?.districtCode);
-      console.log('Student stateCode:', studentData?.stateCode);
+
       
       // Always fetch all quizzes first
       const allQuizzesQuery = query(
@@ -241,7 +237,7 @@ const Quiz = () => {
         }
       });
 
-      console.log('Found "all" quizzes:', quizzes.length);
+
 
       // If user is logged in and has student data, fetch targeted quizzes
       if (user && studentData) {
@@ -260,7 +256,7 @@ const Quiz = () => {
               quizzes.push(quizData);
             }
           });
-          console.log('Found state-specific quizzes:', stateQuizzesSnapshot.size);
+
         }
 
         // Fetch district-specific quizzes
@@ -278,7 +274,7 @@ const Quiz = () => {
               quizzes.push(quizData);
             }
           });
-          console.log('Found district-specific quizzes:', districtQuizzesSnapshot.size);
+
         }
 
         // Fetch school-specific quizzes
@@ -292,7 +288,7 @@ const Quiz = () => {
             const schoolDoc = schoolSnapshot.docs[0];
             const schoolDocId = schoolDoc.id;
             
-            console.log(`Found school document ID ${schoolDocId} for schoolCode ${studentData.schoolCode}`);
+
             
             // Now fetch quizzes targeted to this school
             const schoolQuizzesQuery = query(
@@ -301,7 +297,7 @@ const Quiz = () => {
               where('targetId', '==', schoolDocId)
             );
             const schoolQuizzesSnapshot = await getDocs(schoolQuizzesQuery);
-            console.log(`Found school-specific quizzes for school ${schoolDocId}:`, schoolQuizzesSnapshot.size);
+
             
             schoolQuizzesSnapshot.forEach(doc => {
               const quizData = { id: doc.id, ...doc.data() } as Quiz;
@@ -311,7 +307,7 @@ const Quiz = () => {
               }
             });
           } else {
-            console.log(`No school found with schoolCode: ${studentData.schoolCode}`);
+
           }
         }
 

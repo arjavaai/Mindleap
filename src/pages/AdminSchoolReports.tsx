@@ -168,18 +168,8 @@ const AdminSchoolReports = () => {
       const studentsSnapshot = await getDocs(collection(db, 'students'));
       const schoolStudents: any[] = [];
       
-      console.log('Looking for students with school code:', school.schoolCode);
-      
       studentsSnapshot.forEach((doc) => {
         const studentData = doc.data();
-        console.log('Student data:', {
-          id: doc.id,
-          name: studentData.name,
-          uid: studentData.uid,
-          schoolCode: studentData.schoolCode,
-          school: studentData.school,
-          schoolName: studentData.schoolName
-        });
         
         // More flexible school matching
         if (studentData.schoolCode === school.schoolCode || 
@@ -192,11 +182,8 @@ const AdminSchoolReports = () => {
             uid: studentData.uid, // This is the key - we need the Firebase Auth UID
             ...studentData
           });
-          console.log('✅ Student matched for school:', studentData.name, 'UID:', studentData.uid);
         }
       });
-      
-      console.log(`Found ${schoolStudents.length} students for school: ${school.name}`);
 
       // Get streak data for all school students
       const monthStart = startOfMonth(selectedMonth);
@@ -209,31 +196,15 @@ const AdminSchoolReports = () => {
       const subjectMap = new Map<string, SubjectReport>();
       const studentPerformances: StudentPerformance[] = [];
 
-      console.log(`Checking daily streaks for ${schoolStudents.length} students...`);
-      console.log('Month range:', { monthStart, monthEnd });
-
       for (const student of schoolStudents) {
         try {
-          console.log(`Checking student: ${student.name} (Document ID: ${student.id}, UID: ${student.uid})`);
-          
           // Use the Firebase Auth UID to fetch daily streak data, not the document ID
           const streakDocId = student.uid || student.id; // Fallback to document ID if UID is missing
           const streakDoc = await getDoc(doc(db, 'dailyStreaks', streakDocId));
           
-          console.log(`Daily streak document exists for ${student.name} (using ${student.uid ? 'UID' : 'Document ID'}):`, streakDoc.exists());
-          
           if (streakDoc.exists()) {
             const streakData = streakDoc.data();
             const records = streakData.records || {};
-            
-            console.log(`Student ${student.name} has ${Object.keys(records).length} total records`);
-            
-            // Show available months for this student
-            const availableMonths = Object.keys(records).map(dateStr => {
-              const date = new Date(dateStr);
-              return format(date, 'MMMM yyyy');
-            });
-            console.log(`Available months for ${student.name}:`, [...new Set(availableMonths)]);
             
             // Filter records for selected month
             const monthRecords = Object.values(records).filter((record: any) => {
@@ -241,8 +212,6 @@ const AdminSchoolReports = () => {
               const isInRange = recordDate >= monthStart && recordDate <= monthEnd;
               return isInRange;
             });
-
-            console.log(`Student ${student.name} has ${monthRecords.length} records for selected month`);
 
             if (monthRecords.length > 0) {
               activeStudents++;
@@ -308,14 +277,7 @@ const AdminSchoolReports = () => {
         const percentage = subject.questionsAnswered > 0 ? 
           ((subject.correctAnswers / subject.questionsAnswered) * 100) : 0;
         
-        console.log(`Subject: ${subject.subjectName}`, {
-          questionsAnswered: subject.questionsAnswered,
-          correctAnswers: subject.correctAnswers,
-          totalScore: subject.totalScore,
-          percentage: percentage.toFixed(1),
-          studentsParticipated,
-          averageScorePerStudent
-        });
+
         
         return {
           ...subject,
@@ -344,22 +306,7 @@ const AdminSchoolReports = () => {
         topPerformers
       };
 
-      console.log('Generated School Report:', {
-        schoolName: report.schoolName,
-        totalStudents: report.totalStudents,
-        activeStudents: report.activeStudents,
-        totalQuestions: report.totalQuestions,
-        totalScore: report.totalScore,
-        streakDays: report.streakDays,
-        subjectsCount: report.subjects.length,
-        subjects: report.subjects.map(s => ({
-          name: s.subjectName,
-          questions: s.questionsAnswered,
-          correct: s.correctAnswers,
-          score: s.totalScore,
-          percentage: s.percentage.toFixed(1)
-        }))
-      });
+
 
       if (reportNumber === 1) {
         setSchoolReport1(report);
@@ -642,10 +589,10 @@ const AdminSchoolReports = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">School Reports</h1>
-          <p className="text-gray-600">Analyze and compare school performance data</p>
+      <div className="container mx-auto px-4 py-6 md:py-8">
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">School Reports</h1>
+          <p className="text-gray-600 text-sm md:text-base">Analyze and compare school performance data</p>
         </div>
 
         {/* Filters Section */}

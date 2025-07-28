@@ -164,7 +164,10 @@ const QuestionSchedulerTab = () => {
               </h3>
               
               <div className="mb-6">
-                <p className="text-gray-800 mb-4 leading-relaxed">{questionDetail.question}</p>
+                <div 
+                  className="text-gray-800 mb-4 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: questionDetail.question }}
+                />
                 
                 <div className="space-y-3">
                   {Object.entries(questionDetail.options).map(([key, value]) => (
@@ -176,12 +179,15 @@ const QuestionSchedulerTab = () => {
                           : 'border-gray-200 bg-gray-50'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-start gap-3">
                         {key === questionDetail.correctOption.toLowerCase() && (
-                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
                         )}
-                        <span className="font-medium">{key.toUpperCase()}:</span>
-                        <span>{value}</span>
+                        <span className="font-medium flex-shrink-0">{key.toUpperCase()}:</span>
+                        <div 
+                          className="flex-1"
+                          dangerouslySetInnerHTML={{ __html: value }}
+                        />
                       </div>
                     </div>
                   ))}
@@ -191,7 +197,10 @@ const QuestionSchedulerTab = () => {
               {questionDetail.explanation && (
                 <div className="border-t pt-4">
                   <h4 className="font-medium text-gray-800 mb-2">Explanation:</h4>
-                  <p className="text-gray-600 text-sm leading-relaxed">{questionDetail.explanation}</p>
+                  <div 
+                    className="text-gray-600 text-sm leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: questionDetail.explanation }}
+                  />
                 </div>
               )}
             </div>

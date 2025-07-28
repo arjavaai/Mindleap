@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, School, LogOut, Brain, Calendar, Bug, MessageSquare, Building, MapPin, Target, Video, Play, Menu, X, Shield, FileText } from 'lucide-react';
+import { Users, School, LogOut, Brain, Calendar, MessageSquare, Building, MapPin, Target, Video, Play, Menu, X, Shield, FileText } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { useAdminPermissions } from './AdminContext';
 import SchoolsTab from './SchoolsTab';
 import UsersTab from './UsersTab';
 import DailyStreakQuestionsTab from './DailyStreakQuestionsTab';
-import DebugTab from './DebugTab';
+
 import ContactQueriesTab from './ContactQueriesTab';
 import SchoolRequestsTab from './SchoolRequestsTab';
 import StateManagementTab from './StateManagementTab';
@@ -64,7 +64,6 @@ const AdminPanel = () => {
     { id: 'school-requests', label: 'School Requests', icon: Building, permission: 'school-requests' },
     { id: 'questions', label: 'Streak Scheduler', icon: Calendar, permission: 'questions' },
     { id: 'question-scheduler', label: 'Question Scheduler', icon: Brain, permission: 'questions' },
-    { id: 'debug', label: 'Debug Tools', icon: Bug, permission: 'debug' },
   ];
 
   // Filter tabs based on permissions
@@ -207,7 +206,7 @@ const AdminPanel = () => {
             <h1 className="text-xl font-bold text-gray-800 ml-4">Admin Dashboard</h1>
           </header>
 
-          <main className="p-6">
+          <main className="p-4 md:p-6">
             <motion.div
               key={activeTab}
               initial={{ opacity: 0, y: 20 }}
@@ -227,7 +226,6 @@ const AdminPanel = () => {
               {activeTab === 'school-requests' && hasPermission('school-requests') && <SchoolRequestsTab />}
               {activeTab === 'questions' && hasPermission('questions') && <DailyStreakQuestionsTab />}
               {activeTab === 'question-scheduler' && hasPermission('questions') && <QuestionSchedulerTab />}
-              {activeTab === 'debug' && hasPermission('debug') && <DebugTab />}
               
               {/* Permission denied message */}
               {!hasPermission(activeTab) && activeTab !== 'sub-admins' && (

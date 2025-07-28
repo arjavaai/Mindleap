@@ -246,7 +246,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
     }
 
     const templateData = [
-      ['State', 'District', 'School', 'Student Name', 'Address', 'Email', 'Parent Details', 'Age', 'WhatsApp Number', 'Gender']
+      ['State', 'District', 'School', 'Student Name', 'Class', 'Address', 'Email', 'Parent Details', 'Age', 'WhatsApp Number', 'Gender']
     ];
 
     // Add sample data for each selected combination
@@ -268,6 +268,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
             district.districtName, // District
             school.name, // School
             'John Doe', // Student Name
+            '10th', // Class
             '123 Main St', // Address
             'john@example.com', // Email
             'Mr. John Sr.', // Parent Details
@@ -280,6 +281,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
             district.districtName,
             school.name,
             'Jane Smith',
+            '9th', // Class
             '456 Oak Ave',
             'jane@example.com',
             'Mrs. Jane Sr.',
@@ -385,6 +387,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
       const districtIndex = getColumnIndex('district');
       const schoolIndex = getColumnIndex('school');
       const nameIndex = getColumnIndex('student name');
+      const classIndex = getColumnIndex('class');
       const addressIndex = getColumnIndex('address');
       const emailIndex = getColumnIndex('email');
       const parentIndex = getColumnIndex('parent');
@@ -401,6 +404,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
             districtCode: row[districtIndex]?.toString().trim() || '',
             schoolCode: row[schoolIndex]?.toString().trim() || '',
             name: row[nameIndex]?.toString().trim() || '',
+            class: classIndex >= 0 ? row[classIndex]?.toString().trim() : '',
             address: addressIndex >= 0 ? row[addressIndex]?.toString().trim() : '',
             email: emailIndex >= 0 ? row[emailIndex]?.toString().trim() : '',
             parentDetails: parentIndex >= 0 ? row[parentIndex]?.toString().trim() : '',
@@ -790,6 +794,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
               schoolCode: student.schoolCode,
               password: password,
               email: email,
+              class: student.class || '',
               address: student.address || '',
               parentDetails: student.parentDetails || '',
               age: student.age || '',
