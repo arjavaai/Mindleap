@@ -344,7 +344,7 @@ const ShieldProgressBar: React.FC<ShieldProgressBarProps> = ({ currentPoints, cl
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            Shield Progression
+            Streak Progression
           </motion.h3>
           <div className="flex items-center justify-center gap-2">
             <motion.div
