@@ -7,11 +7,88 @@ const WebinarsSection = () => {
   
   const speakers = [
     {
+      name: "V.V (JD) Lakshmi Narayana",
+      topic: "Leadership & Public Service",
+      expertise: "IPS Officer",
+      organization: "Indian Police Service",
+      image: "/Speakers List/1.jpeg"
+    },
+    {
       name: "Gampa Nageshwer Rao",
       topic: "Child Psychology & Development",
       expertise: "Child Psychologist",
       organization: "Founder: IMPACT Foundation",
-      image: "/lovable-uploads/38514de7-afa1-4e8b-b01f-cf4dbcc35fd7.png"
+      image: "/Speakers List/2.jpeg"
+    },
+    {
+      name: "Dr. Kalyan Chakravarthy",
+      topic: "Health & Wellness",
+      expertise: "MBBS MD",
+      organization: "Medical Professional",
+      image: "/Speakers List/3.jpg"
+    },
+    {
+      name: "Yandamoori Veerendranath",
+      topic: "Financial Literacy & Investment",
+      expertise: "CA (Chartered Accountant)",
+      organization: "Financial Expert",
+      image: "/Speakers List/4.jpeg"
+    },
+    {
+      name: "Bala Latha",
+      topic: "Defense & Strategy",
+      expertise: "Dy. Director of Defence",
+      organization: "Defense Department",
+      image: "/Speakers List/5.jpg"
+    },
+    {
+      name: "Dr. Jayaprakash Narayana",
+      topic: "Public Administration & Health",
+      expertise: "IAS, MBBS",
+      organization: "Indian Administrative Service",
+      image: "/Speakers List/6.jpg"
+    },
+    {
+      name: "Pradeep KV",
+      topic: "Soft Skills & Communication",
+      expertise: "Int'l Soft Skills Trainer",
+      organization: "Soft Skills Expert",
+      image: "/Speakers List/7.jpeg"
+    },
+    {
+      name: "Ramaa Raavi",
+      topic: "Sanskrit Literature & Culture",
+      expertise: "Sanskrit Scholar & Writer",
+      organization: "Cultural Expert",
+      image: "/Speakers List/8.jpg"
+    },
+    {
+      name: "Ram Jaladurgam",
+      topic: "Technology & Innovation",
+      expertise: "Tech Expert",
+      organization: "Technology Professional",
+      image: "/Speakers List/9.avif"
+    },
+    {
+      name: "Dr. Tejaswini Manogna",
+      topic: "Healthcare & Medicine",
+      expertise: "MBBS, MD",
+      organization: "Medical Professional",
+      image: "/Speakers List/10.jpeg"
+    },
+    {
+      name: "Venu Kalyan",
+      topic: "Business & Entrepreneurship",
+      expertise: "Business Expert",
+      organization: "Entrepreneur",
+      image: "/Speakers List/11.jpg"
+    },
+    {
+      name: "Sravan Varanasi",
+      topic: "Technology & Digital Innovation",
+      expertise: "Tech Innovator",
+      organization: "Digital Expert",
+      image: "/Speakers List/12.jpeg"
     }
   ];
 
@@ -38,8 +115,8 @@ const WebinarsSection = () => {
                   <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4 mx-auto backdrop-blur-sm">
                     <div className="w-0 h-0 border-l-[12px] border-l-white border-y-[8px] border-y-transparent ml-1"></div>
                   </div>
-                  <p className="text-lg font-semibold">First Webinar: Knowing Yourself</p>
-                  <p className="text-sm opacity-90">Going Live on Aug 3rd by Gampa Nageshwer Rao</p>
+                  <p className="text-lg font-semibold">First Parent Webinar: Build a Strong Bond</p>
+                  <p className="text-sm opacity-90">Going Live on Sep 17 by Dr Kalyan Chakravarthy</p>
                 </div>
                 
                 {/* Live indicator */}
@@ -97,33 +174,31 @@ const WebinarsSection = () => {
         <ScrollAnimation animation="fadeUp" delay={300}>
           <div className="bg-white rounded-2xl p-8">
             <h3 className="text-2xl font-bold text-deep-blue text-center mb-8">Featured Speakers</h3>
-            <div className="flex justify-center">
-              <div className="max-w-sm mx-auto">
-                {speakers.map((speaker, index) => (
-                  <div 
-                    key={index} 
-                    className="text-center p-6 rounded-xl hover:bg-gray-50 transition-all duration-300 cursor-pointer relative"
-                    onMouseEnter={() => setHoveredSpeaker(index)}
-                    onMouseLeave={() => setHoveredSpeaker(null)}
-                  >
-                    <div className="w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden">
-                      <img 
-                        src={speaker.image} 
-                        alt={speaker.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <h4 className="font-semibold text-deep-blue mb-1 text-xl">{speaker.name}</h4>
-                    <p className="text-vibrant-orange font-medium mb-1">{speaker.expertise}</p>
-                    <p className="text-gray-500 mb-2">{speaker.organization}</p>
-                    <p className="text-gray-600">{speaker.topic}</p>
-                    
-                    {hoveredSpeaker === index && (
-                      <div className="absolute inset-0 bg-vibrant-orange/10 rounded-xl border-2 border-vibrant-orange/20 animate-pulse"></div>
-                    )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {speakers.map((speaker, index) => (
+                <div
+                  key={index}
+                  className="text-center p-4 rounded-xl hover:bg-gray-50 transition-all duration-300 cursor-pointer relative"
+                  onMouseEnter={() => setHoveredSpeaker(index)}
+                  onMouseLeave={() => setHoveredSpeaker(null)}
+                >
+                  <div className="w-24 h-24 mx-auto mb-3 rounded-full overflow-hidden">
+                    <img
+                      src={speaker.image}
+                      alt={speaker.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                ))}
-              </div>
+                  <h4 className="font-semibold text-deep-blue mb-1 text-sm">{speaker.name}</h4>
+                  <p className="text-vibrant-orange font-medium mb-1 text-xs">{speaker.expertise}</p>
+                  <p className="text-gray-500 mb-1 text-xs">{speaker.organization}</p>
+                  <p className="text-gray-600 text-xs">{speaker.topic}</p>
+
+                  {hoveredSpeaker === index && (
+                    <div className="absolute inset-0 bg-vibrant-orange/10 rounded-xl border-2 border-vibrant-orange/20 animate-pulse"></div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </ScrollAnimation>

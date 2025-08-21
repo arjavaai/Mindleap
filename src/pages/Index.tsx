@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import HeroSection from '../components/HeroSection';
 import AboutMindLeap from '../components/AboutMindLeap';
+import FeaturedSpeakers from '../components/FeaturedSpeakers';
 import WhyMindLeapVideo from '../components/WhyMindLeapVideo';
 import WhySkillsMatter from '../components/WhySkillsMatter';
 import FourPillars from '../components/FourPillars';
@@ -52,6 +53,9 @@ const Index = () => {
       </div>
       <div id="about-mindleap" className="animate-on-load">
         <AboutMindLeap />
+      </div>
+      <div className="animate-on-load">
+        <FeaturedSpeakers />
       </div>
       <div className="animate-on-load">
         <WhyMindLeapVideo />
