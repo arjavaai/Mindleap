@@ -45,7 +45,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
   const [viewingQuestion, setViewingQuestion] = useState<Question | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<Question | null>(null);
   const [tooltipVisible, setTooltipVisible] = useState<string | null>(null);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     question: '',
@@ -70,19 +70,19 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
     try {
       const questionsCollection = collection(db, 'subjects', subject.id, 'questions');
       const snapshot = await getDocs(questionsCollection);
-      
+
       const fetchedQuestions: Question[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
         console.log('📄 Raw document data:', data);
-        
+
         // Handle different possible data structures for options
         let options = { a: '', b: '', c: '', d: '' };
-        
+
         // Check all possible data structures based on the Firebase screenshot
         if (data.options) {
           console.log('📊 Options found in data.options:', data.options);
-          
+
           // If options is an object with a, b, c, d keys (lowercase)
           if (typeof data.options === 'object' && data.options.a !== undefined) {
             options = {
@@ -111,7 +111,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
             };
           }
         }
-        
+
         // Also check for individual option fields at the root level
         if (data.A || data.B || data.C || data.D) {
           console.log('📊 Options found at root level:', { A: data.A, B: data.B, C: data.C, D: data.D });
@@ -122,7 +122,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
             d: String(data.D || '')
           };
         }
-        
+
         // Check for lowercase at root level
         if (data.a || data.b || data.c || data.d) {
           console.log('📊 Options found at root level (lowercase):', { a: data.a, b: data.b, c: data.c, d: data.d });
@@ -133,7 +133,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
             d: String(data.d || '')
           };
         }
-        
+
         // Check for numeric keys (0, 1, 2, 3) which might be how Firebase stores arrays
         if (data['0'] || data['1'] || data['2'] || data['3']) {
           console.log('📊 Options found with numeric keys:', { 0: data['0'], 1: data['1'], 2: data['2'], 3: data['3'] });
@@ -144,13 +144,13 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
             d: String(data['3'] || '')
           };
         }
-        
+
         // Final fallback - check all fields and try to extract options
         console.log('🔍 All data keys:', Object.keys(data));
         console.log('🔍 All data values:', Object.values(data));
-        
+
         console.log('🔧 Processed options:', options);
-        
+
         const question: Question = {
           id: doc.id,
           question: data.question || '',
@@ -159,7 +159,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
           explanation: data.explanation || '',
           createdAt: data.createdAt || new Date().toISOString()
         };
-        
+
         console.log('✨ Final question object:', question);
         fetchedQuestions.push(question);
       });
@@ -243,7 +243,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
       };
 
       const docRef = await addDoc(collection(db, 'subjects', subject.id, 'questions'), questionData);
-      
+
       const newQuestion: Question = {
         id: docRef.id,
         ...questionData
@@ -330,11 +330,11 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
       };
 
       await updateDoc(doc(db, 'subjects', subject.id, 'questions', editingQuestion.id), questionData);
-      
-      setQuestions(prev => prev.map(q => 
+
+      setQuestions(prev => prev.map(q =>
         q.id === editingQuestion.id ? { ...q, ...questionData } : q
       ));
-      
+
       setShowAddForm(false);
       setEditingQuestion(null);
       resetForm();
@@ -592,7 +592,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
                 >
                   <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div 
+                      <div
                         className="text-gray-800 font-medium mb-3 text-lg"
                         dangerouslySetInnerHTML={{ __html: question.question }}
                       />
@@ -639,7 +639,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
                                       ✕
                                     </button>
                                   </div>
-                                  <div 
+                                  <div
                                     className="text-gray-700 text-sm leading-relaxed"
                                     dangerouslySetInnerHTML={{ __html: question.explanation }}
                                   />
@@ -650,7 +650,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-2 lg:ml-4 justify-end lg:justify-start flex-shrink-0">
                       <Button
                         onClick={() => setViewingQuestion(question)}
@@ -697,7 +697,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
             <div className="space-y-4 overflow-y-auto flex-1 pr-2">
               <div>
                 <h3 className="font-semibold text-gray-700 mb-2">Question:</h3>
-                <div 
+                <div
                   className="text-gray-800"
                   dangerouslySetInnerHTML={{ __html: viewingQuestion.question }}
                 />
@@ -730,7 +730,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
               {viewingQuestion.explanation && (
                 <div>
                   <h3 className="font-semibold text-gray-700 mb-2">Explanation:</h3>
-                  <div 
+                  <div
                     className="text-gray-800"
                     dangerouslySetInnerHTML={{ __html: viewingQuestion.explanation }}
                   />
@@ -756,7 +756,7 @@ const QuestionManagementScreen: React.FC<QuestionManagementScreenProps> = ({ sub
                 Are you sure you want to delete this question? This action cannot be undone.
               </p>
               <div className="bg-gray-50 p-3 rounded-lg">
-                <div 
+                <div
                   className="text-sm text-gray-600 font-medium"
                   dangerouslySetInnerHTML={{ __html: truncateText(deleteConfirmation.question, 100) }}
                 />

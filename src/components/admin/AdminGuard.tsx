@@ -13,7 +13,11 @@ const AdminGuardContent = ({ children }: AdminGuardProps) => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-blue-50">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500 mx-auto mb-6"></div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Loading Admin Panel</h2>
+          <p className="text-gray-600">Please wait while we verify your admin access...</p>
+        </div>
       </div>
     );
   }

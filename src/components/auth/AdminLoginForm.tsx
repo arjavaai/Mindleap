@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../../lib/firebase';
 import { User, Lock, Eye, EyeOff, ArrowRight, Shield } from 'lucide-react';
@@ -14,6 +15,7 @@ interface AdminLoginFormProps {
 }
 
 const AdminLoginForm = ({ onToggleForm }: AdminLoginFormProps) => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -115,9 +117,9 @@ const AdminLoginForm = ({ onToggleForm }: AdminLoginFormProps) => {
             title: "Admin Access Granted",
             description: "Welcome to the MindLeap Admin Panel.",
           });
-          
-          // Redirect to admin panel
-          window.location.href = '/admin';
+
+          // Redirect to admin panel with smooth navigation
+          navigate('/admin');
           return;
         } catch (error: any) {
           console.log('Debug: Main admin login failed:', error.code, error.message);
@@ -140,7 +142,7 @@ const AdminLoginForm = ({ onToggleForm }: AdminLoginFormProps) => {
                   title: "Admin Access Granted",
                   description: "Welcome to the MindLeap Admin Panel.",
                 });
-                window.location.href = '/admin';
+                navigate('/admin');
                 return;
               } catch (retryError: any) {
                 console.error('Debug: Retry login failed:', retryError);
@@ -192,9 +194,9 @@ const AdminLoginForm = ({ onToggleForm }: AdminLoginFormProps) => {
         title: "Admin Access Granted",
         description: "Welcome to the MindLeap Admin Panel.",
       });
-      
-      // Redirect to admin panel
-      window.location.href = '/admin';
+
+      // Redirect to admin panel with smooth navigation
+      navigate('/admin');
       
     } catch (error: any) {
       console.error('Debug: Login error caught in outer catch:', error.code, error.message, error);

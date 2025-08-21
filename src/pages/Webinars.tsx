@@ -2,23 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../lib/firebase';
-import { 
-  collection, 
-  getDocs, 
-  doc, 
-  getDoc, 
-  query, 
-  where, 
+import {
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  query,
+  where,
   addDoc,
   updateDoc,
   serverTimestamp
 } from 'firebase/firestore';
-import { 
-  Video, 
-  Calendar, 
-  Clock, 
-  Users, 
-  Play, 
+import {
+  Video,
+  Calendar,
+  Clock,
+  Users,
+  Play,
   CheckCircle,
   ArrowLeft,
   User,
@@ -74,19 +74,19 @@ const Webinars = () => {
 
   useEffect(() => {
     console.log('Webinars component mounted, user:', user, 'authLoading:', authLoading);
-    
+
     // Don't do anything while auth is still loading
     if (authLoading) {
       return;
     }
-    
+
     // If there's an auth error, show it
     if (authError) {
       setError('Authentication error. Please try logging in again.');
       setLoading(false);
       return;
     }
-    
+
     if (user) {
       fetchStudentData();
     } else {
@@ -114,7 +114,7 @@ const Webinars = () => {
       console.log('Fetching student data for user:', user.uid);
       const studentRef = doc(db, 'students', user.uid);
       const studentSnap = await getDoc(studentRef);
-      
+
       if (studentSnap.exists()) {
         const data = studentSnap.data();
         console.log('Student data found:', data);
@@ -173,26 +173,26 @@ const Webinars = () => {
       console.log('Fetching webinars...');
       console.log('Current student data:', studentData);
       console.log('Current user:', user);
-      
+
       const webinarsSnapshot = await getDocs(collection(db, 'webinars'));
       const allWebinars: Webinar[] = [];
-      
+
       console.log('Found webinars:', webinarsSnapshot.size);
-      
+
       webinarsSnapshot.forEach(doc => {
         const webinarData = { id: doc.id, ...doc.data() } as Webinar;
         console.log('Processing webinar:', webinarData.title);
-        
+
         // Check each filter condition
         const isActiveCheck = webinarData.isActive;
         const isStudentAudience = webinarData.audienceType === 'students';
         const isParentAudience = webinarData.audienceType === 'parents';
         const isRelevantAudience = isStudentAudience || isParentAudience; // Students can see both types
-        
+
         if (isActiveCheck && isRelevantAudience) {
           let shouldInclude = false;
           let reason = '';
-          
+
           if (webinarData.targetType === 'all') {
             shouldInclude = true;
             reason = 'Target type is "all"';
@@ -203,7 +203,7 @@ const Webinars = () => {
           } else {
             // Check location-based targeting
             const hasLocationData = studentData.state || studentData.districtCode || studentData.schoolCode;
-            
+
             if (!hasLocationData) {
               // If student has no location data, show all webinars as fallback
               shouldInclude = true;
@@ -222,9 +222,9 @@ const Webinars = () => {
               reason = `No location match - Target: ${webinarData.targetType}`;
             }
           }
-          
+
           console.log(`Webinar "${webinarData.title}" - Include: ${shouldInclude}, Reason: ${reason}`);
-          
+
           if (shouldInclude) {
             allWebinars.push(webinarData);
           }
@@ -242,7 +242,7 @@ const Webinars = () => {
 
       console.log('Final filtered webinars:', allWebinars);
       setWebinars(allWebinars);
-      
+
       // Clear any previous errors when webinars load successfully
       setError(null);
     } catch (error) {
@@ -316,15 +316,15 @@ const Webinars = () => {
       console.log('Testing Firebase connection...');
       const webinarsSnapshot = await getDocs(collection(db, 'webinars'));
       const rawWebinars: any[] = [];
-      
+
       webinarsSnapshot.forEach(doc => {
         const data = doc.data();
         rawWebinars.push({ id: doc.id, ...data });
       });
-      
+
       console.log('Raw webinars from Firebase:', rawWebinars);
       alert(`Found ${rawWebinars.length} webinars in Firebase. Check console for details.`);
-      
+
       // Show a summary in alert
       const summary = rawWebinars.map(w => `${w.title} (Active: ${w.isActive}, Target: ${w.targetType}, Audience: ${w.audienceType})`).join('\n');
       console.log('Webinar Summary:\n', summary);
@@ -398,21 +398,19 @@ const Webinars = () => {
             <div className="flex gap-1">
               <button
                 onClick={() => setActiveTab('students')}
-                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
-                  activeTab === 'students'
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'text-gray-600 hover:text-blue-600'
-                }`}
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${activeTab === 'students'
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'text-gray-600 hover:text-blue-600'
+                  }`}
               >
                 Students
               </button>
               <button
                 onClick={() => setActiveTab('parents')}
-                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
-                  activeTab === 'parents'
-                    ? 'bg-pink-600 text-white shadow-lg'
-                    : 'text-gray-600 hover:text-pink-600'
-                }`}
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${activeTab === 'parents'
+                  ? 'bg-pink-600 text-white shadow-lg'
+                  : 'text-gray-600 hover:text-pink-600'
+                  }`}
               >
                 Parents
               </button>
@@ -430,11 +428,10 @@ const Webinars = () => {
             <div className="flex gap-1">
               <button
                 onClick={() => setActiveSubTab('upcoming')}
-                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
-                  activeSubTab === 'upcoming'
-                    ? 'bg-purple-600 text-white shadow-lg'
-                    : 'text-gray-600 hover:text-purple-600'
-                }`}
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${activeSubTab === 'upcoming'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'text-gray-600 hover:text-purple-600'
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
@@ -443,11 +440,10 @@ const Webinars = () => {
               </button>
               <button
                 onClick={() => setActiveSubTab('completed')}
-                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
-                  activeSubTab === 'completed'
-                    ? 'bg-purple-600 text-white shadow-lg'
-                    : 'text-gray-600 hover:text-purple-600'
-                }`}
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${activeSubTab === 'completed'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'text-gray-600 hover:text-purple-600'
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4" />
@@ -476,113 +472,110 @@ const Webinars = () => {
               );
 
               return filteredWebinars.map((webinar, index) => {
-              const isWebinarStarted = () => {
-                if (!webinar.scheduledDate) return false;
-                const scheduledDate = webinar.scheduledDate.toDate ? webinar.scheduledDate.toDate() : new Date(webinar.scheduledDate);
-                return new Date() >= scheduledDate;
-              };
+                const isWebinarStarted = () => {
+                  if (!webinar.scheduledDate) return false;
+                  const scheduledDate = webinar.scheduledDate.toDate ? webinar.scheduledDate.toDate() : new Date(webinar.scheduledDate);
+                  return new Date() >= scheduledDate;
+                };
 
-              const canWatch = isWebinarCompleted(webinar) || isWebinarStarted();
+                const canWatch = isWebinarCompleted(webinar) || isWebinarStarted();
 
-              return (
-                <motion.div
-                  key={webinar.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ 
-                    scale: 1.05,
-                    y: -10,
-                    boxShadow: "0 20px 40px rgba(0,0,0,0.1)"
-                  }}
-                  className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/50 hover:border-purple-200 transition-all duration-300 cursor-pointer group"
-                  onClick={() => canWatch && handleViewWebinar(webinar)}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      {getTargetIcon(webinar.targetType)}
-                      <span className="text-xs text-gray-500 capitalize">{webinar.targetType}</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        isWebinarCompleted(webinar)
+                return (
+                  <motion.div
+                    key={webinar.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    whileHover={{
+                      scale: 1.05,
+                      y: -10,
+                      boxShadow: "0 20px 40px rgba(0,0,0,0.1)"
+                    }}
+                    className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/50 hover:border-purple-200 transition-all duration-300 cursor-pointer group"
+                    onClick={() => canWatch && handleViewWebinar(webinar)}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        {getTargetIcon(webinar.targetType)}
+                        <span className="text-xs text-gray-500 capitalize">{webinar.targetType}</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${isWebinarCompleted(webinar)
                           ? 'bg-gray-100 text-gray-600'
                           : 'bg-green-100 text-green-600'
-                      }`}>
-                        {isWebinarCompleted(webinar) ? 'Completed' : 'Upcoming'}
-                      </div>
-                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        webinar.audienceType === 'students' 
-                          ? 'bg-blue-100 text-blue-600' 
+                          }`}>
+                          {isWebinarCompleted(webinar) ? 'Completed' : 'Upcoming'}
+                        </div>
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${webinar.audienceType === 'students'
+                          ? 'bg-blue-100 text-blue-600'
                           : 'bg-purple-100 text-purple-600'
-                      }`}>
-                        For {webinar.audienceType === 'students' ? 'Students' : 'Parents'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
-                    {webinar.title}
-                  </h3>
-                  
-                  {webinar.description && (
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                      {webinar.description}
-                    </p>
-                  )}
-
-                  <div className="space-y-3 mb-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Calendar className="w-4 h-4" />
-                      {formatDate(webinar.scheduledDate)}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Clock className="w-4 h-4" />
-                      {webinar.duration} minutes
-                    </div>
-                    
-                    {/* Enhanced Speaker Section */}
-                    {webinar.speakerName && (
-                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                        <div className="flex items-center gap-3">
-                          {webinar.speakerImage ? (
-                            <img
-                              src={webinar.speakerImage}
-                              alt={webinar.speakerName}
-                              className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
-                              onError={(e) => {
-                                e.currentTarget.src = '/placeholder.svg';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                              <User className="w-6 h-6 text-white" />
-                            </div>
-                          )}
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{webinar.speakerName}</p>
-                            <p className="text-xs text-gray-500">Session Speaker</p>
-                          </div>
+                          }`}>
+                          For {webinar.audienceType === 'students' ? 'Students' : 'Parents'}
                         </div>
                       </div>
-                    )}
-                    
-                    {/* Only show view count if it's greater than 0 */}
-                   
-                  </div>
+                    </div>
 
-                  <button 
-                    disabled={!canWatch}
-                    className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-all duration-300 ${
-                      canWatch
+                    <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
+                      {webinar.title}
+                    </h3>
+
+                    {webinar.description && (
+                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                        {webinar.description}
+                      </p>
+                    )}
+
+                    <div className="space-y-3 mb-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Calendar className="w-4 h-4" />
+                        {formatDate(webinar.scheduledDate)}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Clock className="w-4 h-4" />
+                        {webinar.duration} minutes
+                      </div>
+
+                      {/* Enhanced Speaker Section */}
+                      {webinar.speakerName && (
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                          <div className="flex items-center gap-3">
+                            {webinar.speakerImage ? (
+                              <img
+                                src={webinar.speakerImage}
+                                alt={webinar.speakerName}
+                                className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
+                                onError={(e) => {
+                                  e.currentTarget.src = '/placeholder.svg';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                                <User className="w-6 h-6 text-white" />
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900">{webinar.speakerName}</p>
+                              <p className="text-xs text-gray-500">Session Speaker</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Only show view count if it's greater than 0 */}
+
+                    </div>
+
+                    <button
+                      disabled={!canWatch}
+                      className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-all duration-300 ${canWatch
                         ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 group-hover:scale-105'
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    <Play className="w-4 h-4" />
-                    {canWatch ? 'Watch Webinar' : 'Available Soon'}
-                  </button>
-                </motion.div>
+                        }`}
+                    >
+                      <Play className="w-4 h-4" />
+                      {canWatch ? 'Watch Webinar' : 'Available Soon'}
+                    </button>
+                  </motion.div>
                 );
               });
             })()}
@@ -595,24 +588,24 @@ const Webinars = () => {
             webinar.audienceType === activeTab &&
             (activeSubTab === 'upcoming' ? !isWebinarCompleted(webinar) : isWebinarCompleted(webinar))
           );
-          
+
           return filteredWebinars.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-16"
-          >
-            <Video className="w-24 h-24 text-gray-300 mx-auto mb-6" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              No {activeSubTab} webinars for {activeTab}
-            </h3>
-            <p className="text-gray-600">
-              {activeSubTab === 'upcoming' 
-                ? 'Check back later for new webinars!' 
-                : 'Complete some webinars to see them here.'}
-            </p>
-          </motion.div>
-        );
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-16"
+            >
+              <Video className="w-24 h-24 text-gray-300 mx-auto mb-6" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                No {activeSubTab} webinars for {activeTab}
+              </h3>
+              <p className="text-gray-600">
+                {activeSubTab === 'upcoming'
+                  ? 'Check back later for new webinars!'
+                  : 'Complete some webinars to see them here.'}
+              </p>
+            </motion.div>
+          );
         })()}
       </div>
 
@@ -666,7 +659,7 @@ const Webinars = () => {
                 {selectedWebinar.description && (
                   <p className="text-gray-700 mb-6">{selectedWebinar.description}</p>
                 )}
-                
+
                 <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
                   <iframe
                     src={selectedWebinar.youtubeUrl.replace('watch?v=', 'embed/')}
@@ -685,7 +678,7 @@ const Webinars = () => {
                     <ExternalLink className="w-4 h-4" />
                     Open in YouTube
                   </button>
-                  
+
                   <button
                     onClick={() => {
                       setShowVideoModal(false);
