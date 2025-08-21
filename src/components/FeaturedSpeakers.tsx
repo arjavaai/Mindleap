@@ -6,10 +6,10 @@ const FeaturedSpeakers = () => {
 
   const speakers = [
     {
-      name: "V.V (JD) Lakshmi Narayana",
-      topic: "Leadership & Public Service",
-      expertise: "IPS Officer",
-      organization: "Indian Police Service",
+      name: "V.V (JD) Lakshmi Narayana [IPS]",
+      topic: "Leadership Skills & Youth Empowerment",
+      expertise: "CBI Ex-JD / RTD. ADGP",
+      organization: "Founder: JD Foundation",
       image: "/Speakers List/1.jpeg"
     },
     {
@@ -20,73 +20,73 @@ const FeaturedSpeakers = () => {
       image: "/Speakers List/2.jpeg"
     },
     {
-      name: "Dr. Kalyan Chakravarthy",
-      topic: "Health & Wellness",
-      expertise: "MBBS MD",
-      organization: "Medical Professional",
+      name: "Dr. Kalyan Chakravarthy [MBBS MD]",
+      topic: "Positive Parenting Guidance",
+      expertise: "Parenting Counsellor",
+      organization: "MBBS · MD · MRCPsych (UK)",
       image: "/Speakers List/3.jpg"
     },
     {
-      name: "Yandamoori Veerendranath",
-      topic: "Financial Literacy & Investment",
-      expertise: "CA (Chartered Accountant)",
-      organization: "Financial Expert",
+      name: "Yandamoori Veerendranath [CA]",
+      topic: "Personality Development",
+      expertise: "Novelist & Inspirational Speaker",
+      organization: "Founder: SARASWATHI Vidya Peetam",
       image: "/Speakers List/4.jpeg"
     },
     {
-      name: "Bala Latha",
-      topic: "Defense & Strategy",
-      expertise: "Dy. Director of Defence",
-      organization: "Defense Department",
+      name: "Bala Latha [Dy. Director of Defence]",
+      topic: "Civil Services Mentorship",
+      expertise: "Educationist & Mentor",
+      organization: "Founder: CSB IAS Academy",
       image: "/Speakers List/5.jpg"
     },
     {
-      name: "Dr. Jayaprakash Narayana",
-      topic: "Public Administration & Health",
-      expertise: "IAS, MBBS",
-      organization: "Indian Administrative Service",
+      name: "Dr. Jayaprakash Narayana [IAS, MBBS]",
+      topic: "Public Leadership",
+      expertise: "Educationist & Social Reformer",
+      organization: "Founder: Lok Satta Party",
       image: "/Speakers List/6.jpg"
     },
     {
-      name: "Pradeep KV",
-      topic: "Soft Skills & Communication",
-      expertise: "Int'l Soft Skills Trainer",
-      organization: "Soft Skills Expert",
+      name: "Pradeep KV [Int'l Soft Skills Trainer]",
+      topic: "Soft Skills Training",
+      expertise: "Motivational Speaker & Educationist",
+      organization: "Founder: Prasaram Learning Initiatives",
       image: "/Speakers List/7.jpeg"
     },
     {
-      name: "Ramaa Raavi",
-      topic: "Sanskrit Literature & Culture",
-      expertise: "Sanskrit Scholar & Writer",
+      name: "Ramaa Raavi [Sanskrit Scholar & Writer]",
+      topic: "Morality-Based Folktales, Youth Guidance & Parenting",
+      expertise: "Cultural Educator & Narrator",
       organization: "Cultural Expert",
       image: "/Speakers List/8.jpg"
     },
     {
       name: "Ram Jaladurgam",
-      topic: "Technology & Innovation",
-      expertise: "Tech Expert",
-      organization: "Technology Professional",
+      topic: "Leadership Performance Coach",
+      expertise: "Leadership & Visualization Coaching",
+      organization: "Founder: Minds & Dots Consulting",
       image: "/Speakers List/9.avif"
     },
     {
-      name: "Dr. Tejaswini Manogna",
-      topic: "Healthcare & Medicine",
-      expertise: "MBBS, MD",
-      organization: "Medical Professional",
+      name: "Dr. Tejaswini Manogna [MBBS, MD]",
+      topic: "Youth Empowerment & Guidance",
+      expertise: "Pediatrician & Motivational Speaker",
+      organization: "Miss India & Best NCC Cadet in India",
       image: "/Speakers List/10.jpeg"
     },
     {
       name: "Venu Kalyan",
-      topic: "Business & Entrepreneurship",
-      expertise: "Business Expert",
-      organization: "Entrepreneur",
+      topic: "Personality Development & Soft Skills",
+      expertise: "Soft Skills Trainer & Life Coach",
+      organization: "Founder: Unik Life Skills",
       image: "/Speakers List/11.jpg"
     },
     {
       name: "Sravan Varanasi",
-      topic: "Technology & Digital Innovation",
-      expertise: "Tech Innovator",
-      organization: "Digital Expert",
+      topic: "Memory Power & Concentration Skills",
+      expertise: "Brain Coach & Brain Gym Trainer",
+      organization: "Enhancing Student Learning",
       image: "/Speakers List/12.jpeg"
     }
   ];
