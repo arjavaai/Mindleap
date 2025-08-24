@@ -8,7 +8,6 @@ import WhySkillsMatter from '../components/WhySkillsMatter';
 import FourPillars from '../components/FourPillars';
 import WhyAreWeUnique from '../components/WhyAreWeUnique';
 import HowItWorks from '../components/HowItWorks';
-import TopPerformers from '../components/TopPerformers';
 import WhatStudentGets from '../components/WhatStudentGets';
 import WhatSchoolGets from '../components/WhatSchoolGets';
 import Testimonials from '../components/Testimonials';
@@ -71,9 +70,6 @@ const Index = () => {
       </div>
       <div className="animate-on-load">
         <HowItWorks />
-      </div>
-      <div id="top-performers" className="animate-on-load">
-        <TopPerformers />
       </div>
       <div id="what-students-get" className="animate-on-load">
         <WhatStudentGets />

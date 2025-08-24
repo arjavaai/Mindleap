@@ -5,6 +5,21 @@ import ScrollAnimation from '../ScrollAnimation';
 const WebinarsSection = () => {
   const [hoveredSpeaker, setHoveredSpeaker] = useState<number | null>(null);
   
+  // Function to extract name and credentials from speaker name
+  const extractNameAndCredentials = (fullName: string) => {
+    const bracketMatch = fullName.match(/^(.*?)\s*\[(.+)\]$/);
+    if (bracketMatch) {
+      return {
+        name: bracketMatch[1].trim(),
+        credentials: bracketMatch[2].trim()
+      };
+    }
+    return {
+      name: fullName,
+      credentials: null
+    };
+  };
+  
   const speakers = [
     {
       name: "V.V (JD) Lakshmi Narayana [IPS]",
@@ -172,31 +187,69 @@ const WebinarsSection = () => {
 
         {/* Speaker Showcase */}
         <ScrollAnimation animation="fadeUp" delay={300}>
-          <div className="bg-white rounded-2xl p-8">
-            <h3 className="text-2xl font-bold text-deep-blue text-center mb-8">Featured Speakers</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="bg-white rounded-3xl p-10 shadow-xl border border-gray-100">
+            <div className="text-center mb-12">
+              <h3 className="text-3xl font-bold text-deep-blue mb-4">Featured Speakers</h3>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                Meet the distinguished experts who will guide your learning journey
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {speakers.map((speaker, index) => (
                 <div
                   key={index}
-                  className="text-center p-4 rounded-xl hover:bg-gray-50 transition-all duration-300 cursor-pointer relative"
+                  className="text-center p-6 rounded-2xl bg-gradient-to-br from-gray-50 to-white hover:from-white hover:to-gray-50 transition-all duration-500 cursor-pointer relative group border border-gray-100 hover:border-vibrant-orange/20 hover:shadow-lg transform hover:-translate-y-1"
                   onMouseEnter={() => setHoveredSpeaker(index)}
                   onMouseLeave={() => setHoveredSpeaker(null)}
                 >
-                  <div className="w-24 h-24 mx-auto mb-3 rounded-full overflow-hidden">
+                  {/* Larger Speaker Image with enhanced styling */}
+                  <div className="w-28 h-28 mx-auto mb-4 rounded-full overflow-hidden shadow-lg group-hover:shadow-xl transition-all duration-300 border-4 border-white group-hover:border-vibrant-orange/30">
                     <img
                       src={speaker.image}
                       alt={speaker.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                     />
                   </div>
-                  <h4 className="font-semibold text-deep-blue mb-1 text-sm">{speaker.name}</h4>
-                  <p className="text-vibrant-orange font-medium mb-1 text-xs">{speaker.expertise}</p>
-                  <p className="text-gray-500 mb-1 text-xs">{speaker.organization}</p>
-                  <p className="text-gray-600 text-xs">{speaker.topic}</p>
+                  
+                  {/* Speaker Information with better typography */}
+                  <div className="space-y-2">
+                    {(() => {
+                      const { name, credentials } = extractNameAndCredentials(speaker.name);
+                      return (
+                        <>
+                          <h4 className="font-bold text-deep-blue text-sm leading-tight group-hover:text-vibrant-orange transition-colors duration-300">
+                            {name}
+                          </h4>
+                          {credentials && (
+                            <p className="text-teal-600 text-xs font-semibold bg-teal-50 px-2 py-1 rounded-md inline-block">
+                              {credentials}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
+                    
+                    <div className="bg-vibrant-orange text-white px-2 py-1 rounded-full text-xs font-medium inline-block">
+                      {speaker.expertise}
+                    </div>
+                    
+                    <p className="text-gray-600 text-xs font-medium">
+                      {speaker.organization}
+                    </p>
+                    
+                    <p className="text-gray-700 text-xs italic bg-gray-100 px-3 py-1 rounded-lg">
+                      {speaker.topic}
+                    </p>
+                  </div>
 
+                  {/* Enhanced hover effect */}
                   {hoveredSpeaker === index && (
-                    <div className="absolute inset-0 bg-vibrant-orange/10 rounded-xl border-2 border-vibrant-orange/20 animate-pulse"></div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-vibrant-orange/5 to-yellow-400/5 rounded-2xl border-2 border-vibrant-orange/20 animate-pulse"></div>
                   )}
+                  
+                  {/* Decorative element */}
+                  <div className="absolute top-2 right-2 w-4 h-4 bg-vibrant-orange/10 rounded-full group-hover:scale-150 transition-transform duration-300"></div>
                 </div>
               ))}
             </div>
