@@ -4,10 +4,11 @@ import { motion } from 'framer-motion';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
-import { User, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, ArrowRight, KeyRound } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { useToast } from '@/hooks/use-toast';
+import ForgotPasswordForm from './ForgotPasswordForm';
 
 interface StudentLoginFormProps {
   onToggleForm: () => void;
@@ -21,6 +22,7 @@ const StudentLoginForm = ({ onToggleForm }: StudentLoginFormProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { toast } = useToast();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,6 +170,13 @@ const StudentLoginForm = ({ onToggleForm }: StudentLoginFormProps) => {
     }
   };
 
+  // Show forgot password form if requested
+  if (showForgotPassword) {
+    return (
+      <ForgotPasswordForm onBack={() => setShowForgotPassword(false)} />
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -273,8 +282,20 @@ const StudentLoginForm = ({ onToggleForm }: StudentLoginFormProps) => {
           )}
         </Button>
 
+        {/* Forgot Password Link */}
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => setShowForgotPassword(true)}
+            className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors flex items-center justify-center mx-auto"
+          >
+            <KeyRound className="w-4 h-4 mr-1" />
+            Forgot Password?
+          </button>
+        </div>
+
         {/* Toggle to Admin Login */}
-        <div className="text-center pt-4">
+        <div className="text-center pt-2">
           <p className="text-gray-600 text-sm font-poppins">
             Are you an admin?{' '}
             <button

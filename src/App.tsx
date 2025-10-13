@@ -25,6 +25,7 @@ import Webinars from "./pages/Webinars";
 import Workshops from "./pages/Workshops";
 import Leaderboard from "./pages/Leaderboard";
 import Reports from "./pages/Reports";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => (
           <Route path="/workshops" element={<Workshops />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/about" element={<AboutUs />} />
           <Route path="/programs" element={<Programs />} />
           <Route path="/schools" element={<Schools />} />

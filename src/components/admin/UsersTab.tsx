@@ -99,11 +99,19 @@ interface Student {
   address?: string;
 }
 
+interface ClassOption {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt: any;
+}
+
 const UsersTab = () => {
   const { canDelete } = useAdminPermissions();
   const [students, setStudents] = useState<Student[]>([]);
   const [states, setStates] = useState<State[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
+  const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
@@ -138,6 +146,10 @@ const UsersTab = () => {
     email: '',
     address: ''
   });
+  
+  // Class management states
+  const [showAddClassModal, setShowAddClassModal] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [addedStudent, setAddedStudent] = useState<Student | null>(null);
   const [viewingStudent, setViewingStudent] = useState<Student | null>(null);
@@ -177,6 +189,7 @@ const UsersTab = () => {
     const initializeData = async () => {
       await fetchStates();
       await fetchSchools();
+      await fetchClassOptions();
       await fetchStudents(); // Fetch all students on initial load
     };
     initializeData();
@@ -359,6 +372,100 @@ const UsersTab = () => {
         variant: "destructive"
       });
       return [];
+    }
+  };
+
+  const fetchClassOptions = async () => {
+    try {
+      const q = query(collection(db, 'classOptions'), orderBy('name'));
+      const querySnapshot = await getDocs(q);
+      const classesList: ClassOption[] = [];
+      querySnapshot.forEach((doc) => {
+        classesList.push({ id: doc.id, ...doc.data() } as ClassOption);
+      });
+      setClassOptions(classesList);
+      return classesList;
+    } catch (error) {
+      console.error('Error fetching class options:', error);
+      // If collection doesn't exist, initialize with default classes
+      await initializeDefaultClasses();
+      return [];
+    }
+  };
+
+  const initializeDefaultClasses = async () => {
+    try {
+      const defaultClasses = ['8', '9', '10'];
+      const promises = defaultClasses.map(async (className) => {
+        const docRef = await addDoc(collection(db, 'classOptions'), {
+          name: className,
+          isActive: true,
+          createdAt: new Date()
+        });
+        return { id: docRef.id, name: className, isActive: true, createdAt: new Date() };
+      });
+      
+      const newClasses = await Promise.all(promises);
+      setClassOptions(newClasses);
+      console.log('✅ Initialized default class options');
+    } catch (error) {
+      console.error('Error initializing default classes:', error);
+    }
+  };
+
+  const addNewClass = async () => {
+    if (!newClassName.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a class name",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if class already exists
+    const existingClass = classOptions.find(cls => 
+      cls.name.toLowerCase() === newClassName.trim().toLowerCase()
+    );
+    
+    if (existingClass) {
+      toast({
+        title: "Class Already Exists",
+        description: `Class "${newClassName}" already exists`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const docRef = await addDoc(collection(db, 'classOptions'), {
+        name: newClassName.trim(),
+        isActive: true,
+        createdAt: new Date()
+      });
+
+      const newClass: ClassOption = {
+        id: docRef.id,
+        name: newClassName.trim(),
+        isActive: true,
+        createdAt: new Date()
+      };
+
+      setClassOptions(prev => [...prev, newClass]);
+      setNewClassName('');
+      setShowAddClassModal(false);
+
+      toast({
+        title: "Success! ✅",
+        description: `Class "${newClassName}" added successfully`,
+      });
+    } catch (error) {
+      console.error('Error adding new class:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add new class. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -653,17 +760,65 @@ const UsersTab = () => {
       return;
     }
 
+    // Validate required fields
+    if (!newStudent.state || !newStudent.districtCode || !newStudent.schoolCode || !newStudent.class) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields (Name, State, District, School, Class)",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate email if provided
+    if (newStudent.email && !/\S+@\S+\.\S+/.test(newStudent.email)) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid email address",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
+      // Update the student document with all fields
       await updateDoc(doc(db, 'students', editingStudent.id), {
         name: newStudent.name.trim(),
+        state: newStudent.state,
+        districtCode: newStudent.districtCode,
+        schoolCode: newStudent.schoolCode,
+        class: newStudent.class,
+        gender: newStudent.gender,
+        age: newStudent.age ? parseInt(newStudent.age) : null,
+        parentDetails: newStudent.parentDetails?.trim() || '',
+        whatsappNumber: newStudent.whatsappNumber?.trim() || '',
+        email: newStudent.email?.trim() || editingStudent.email, // Keep existing email if new one is empty
+        address: newStudent.address?.trim() || '',
         updatedAt: new Date().toISOString()
       });
 
+      // Update local state with enriched data
+      const updatedStudent = {
+        ...editingStudent,
+        name: newStudent.name.trim(),
+        state: newStudent.state,
+        districtCode: newStudent.districtCode,
+        schoolCode: newStudent.schoolCode,
+        class: newStudent.class,
+        gender: newStudent.gender,
+        age: newStudent.age ? parseInt(newStudent.age) : undefined,
+        parentDetails: newStudent.parentDetails?.trim() || '',
+        whatsappNumber: newStudent.whatsappNumber?.trim() || '',
+        email: newStudent.email?.trim() || editingStudent.email,
+        address: newStudent.address?.trim() || '',
+        // Enrich with location names
+        districtName: availableDistricts.find(d => d.districtCode === newStudent.districtCode)?.districtName || '',
+        schoolName: schools.find(s => s.schoolCode === newStudent.schoolCode)?.name || ''
+      };
+
       setStudents(prev => prev.map(student => 
-        student.id === editingStudent.id 
-          ? { ...student, name: newStudent.name.trim() }
-          : student
+        student.id === editingStudent.id ? updatedStudent : student
       ));
 
       setIsEditModalOpen(false);
@@ -1629,19 +1784,34 @@ const UsersTab = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Class *
                 </label>
-                <div className="flex space-x-4">
-                  {['8', '9', '10'].map((classNum) => (
-                    <label key={classNum} className="flex items-center">
-                      <input
-                        type="radio"
-                        value={classNum}
-                        checked={newStudent.class === classNum}
-                        onChange={(e) => setNewStudent(prev => ({ ...prev, class: e.target.value }))}
-                        className="mr-2"
-                      />
-                      {classNum}
-                    </label>
-                  ))}
+                <div className="space-y-2">
+                  <Select
+                    value={newStudent.class}
+                    onValueChange={(value) => setNewStudent(prev => ({ ...prev, class: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classOptions
+                        .filter(cls => cls.isActive)
+                        .map((classOption) => (
+                          <SelectItem key={classOption.id} value={classOption.name}>
+                            {classOption.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddClassModal(true)}
+                    className="w-full text-xs"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add New Class
+                  </Button>
                 </div>
               </div>
 
@@ -1841,7 +2011,7 @@ const UsersTab = () => {
 
       {/* Edit Student Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Edit className="w-5 h-5 text-blue-600" />
@@ -1849,17 +2019,7 @@ const UsersTab = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Student Name *
-              </label>
-              <Input
-                placeholder="Enter student name"
-                value={newStudent.name}
-                onChange={(e) => setNewStudent(prev => ({ ...prev, name: e.target.value }))}
-              />
-            </div>
-
+            {/* Read-only fields */}
             <div className="bg-gray-50 p-3 rounded-lg space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-gray-600">
@@ -1871,7 +2031,7 @@ const UsersTab = () => {
                 >
                   <Copy className="w-4 h-4" />
                 </button>
-        </div>
+              </div>
               <div className="flex items-center justify-between">
                 <p className="text-sm text-gray-600">
                   <strong>Password:</strong> 
@@ -1898,6 +2058,213 @@ const UsersTab = () => {
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* Editable fields */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Student Name *
+              </label>
+              <Input
+                placeholder="Enter student name"
+                value={newStudent.name}
+                onChange={(e) => setNewStudent(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Class *
+                </label>
+                <div className="space-y-2">
+                  <Select
+                    value={newStudent.class}
+                    onValueChange={(value) => setNewStudent(prev => ({ ...prev, class: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classOptions
+                        .filter(cls => cls.isActive)
+                        .map((classOption) => (
+                          <SelectItem key={classOption.id} value={classOption.name}>
+                            {classOption.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddClassModal(true)}
+                    className="w-full text-xs"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add New Class
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gender *
+                </label>
+                <div className="flex space-x-4">
+                  {[{ value: 'M', label: 'Male' }, { value: 'F', label: 'Female' }].map((gender) => (
+                    <label key={gender.value} className="flex items-center">
+                      <input
+                        type="radio"
+                        value={gender.value}
+                        checked={newStudent.gender === gender.value}
+                        onChange={(e) => setNewStudent(prev => ({ ...prev, gender: e.target.value }))}
+                        className="mr-2"
+                      />
+                      {gender.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Age
+                </label>
+                <Input
+                  type="number"
+                  placeholder="Enter age"
+                  value={newStudent.age}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, age: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  WhatsApp Number
+                </label>
+                <Input
+                  type="number"
+                  placeholder="Enter WhatsApp number"
+                  value={newStudent.whatsappNumber}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, whatsappNumber: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Parent Details
+              </label>
+              <Input
+                placeholder="Enter parent name(s)"
+                value={newStudent.parentDetails}
+                onChange={(e) => setNewStudent(prev => ({ ...prev, parentDetails: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <Input
+                type="email"
+                placeholder="Enter email address"
+                value={newStudent.email}
+                onChange={(e) => setNewStudent(prev => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Address
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Enter full address"
+                value={newStudent.address}
+                onChange={(e) => setNewStudent(prev => ({ ...prev, address: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                State *
+              </label>
+              <Select
+                value={newStudent.state}
+                onValueChange={(value) => {
+                  setNewStudent(prev => ({ 
+                    ...prev, 
+                    state: value, 
+                    districtCode: '', 
+                    schoolCode: '' 
+                  }));
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {states.map((state) => (
+                    <SelectItem key={state.id} value={state.stateName}>
+                      {state.stateName} ({state.stateCode})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                District *
+              </label>
+              <Select
+                value={newStudent.districtCode}
+                onValueChange={(value) => {
+                  setNewStudent(prev => ({ ...prev, districtCode: value, schoolCode: '' }));
+                }}
+                disabled={!newStudent.state}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select district" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableDistricts.map((district) => (
+                    <SelectItem key={district.districtCode} value={district.districtCode}>
+                      {district.districtName} ({district.districtCode})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                School *
+              </label>
+              <Select
+                value={newStudent.schoolCode}
+                onValueChange={(value) => setNewStudent(prev => ({ ...prev, schoolCode: value }))}
+                disabled={!newStudent.districtCode}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select school" />
+                </SelectTrigger>
+                <SelectContent>
+                  {schools
+                    .filter(school => school.districtCode === newStudent.districtCode)
+                    .map((school) => (
+                      <SelectItem key={school.id} value={school.schoolCode}>
+                        {school.name} ({school.schoolCode})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
@@ -2144,6 +2511,52 @@ const UsersTab = () => {
         onClose={() => setIsBulkUploadOpen(false)}
         onSuccess={handleBulkUploadSuccess}
       />
+
+      {/* Add New Class Modal */}
+      <Dialog open={showAddClassModal} onOpenChange={setShowAddClassModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Plus className="w-5 h-5 text-blue-600" />
+              <span>Add New Class</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Class Name *
+              </label>
+              <Input
+                placeholder="Enter class name (e.g., 11, 12, Pre-University, etc.)"
+                value={newClassName}
+                onChange={(e) => setNewClassName(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    addNewClass();
+                  }
+                }}
+              />
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAddClassModal(false);
+                  setNewClassName('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={addNewClass}
+                className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px]"
+              >
+                Add Class
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -52,6 +52,13 @@ interface School {
   status: 'active' | 'inactive';
 }
 
+interface ClassOption {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt: any;
+}
+
 interface BulkStudent {
   name: string;
   stateCode: string;
@@ -99,6 +106,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
   // Multiple Selection States
   const [states, setStates] = useState<State[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
+  const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
   const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
@@ -135,6 +143,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
     if (isOpen) {
       fetchStates();
       fetchSchools();
+      fetchClassOptions();
     }
   }, [isOpen]);
 
@@ -179,6 +188,26 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
         description: "Failed to fetch schools",
         variant: "destructive"
       });
+    }
+  };
+
+  const fetchClassOptions = async () => {
+    try {
+      const q = query(collection(db, 'classOptions'), orderBy('name'));
+      const querySnapshot = await getDocs(q);
+      const classesList: ClassOption[] = [];
+      querySnapshot.forEach((doc) => {
+        classesList.push({ id: doc.id, ...doc.data() } as ClassOption);
+      });
+      setClassOptions(classesList);
+    } catch (error) {
+      console.error('Error fetching class options:', error);
+      // If collection doesn't exist, use default classes
+      setClassOptions([
+        { id: '1', name: '8', isActive: true, createdAt: new Date() },
+        { id: '2', name: '9', isActive: true, createdAt: new Date() },
+        { id: '3', name: '10', isActive: true, createdAt: new Date() }
+      ]);
     }
   };
 
@@ -263,12 +292,15 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
           if (!school) return;
 
           // Add sample students for this combination
+          const sampleClass1 = classOptions.find(cls => cls.isActive)?.name || '10';
+          const sampleClass2 = classOptions.filter(cls => cls.isActive)[1]?.name || '9';
+          
           templateData.push([
             state.stateName, // State
             district.districtName, // District
             school.name, // School
             'John Doe', // Student Name
-            '10th', // Class
+            sampleClass1, // Class
             '123 Main St', // Address
             'john@example.com', // Email
             'Mr. John Sr.', // Parent Details
@@ -281,7 +313,7 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
             district.districtName,
             school.name,
             'Jane Smith',
-            '9th', // Class
+            sampleClass2, // Class
             '456 Oak Ave',
             'jane@example.com',
             'Mrs. Jane Sr.',
@@ -509,6 +541,17 @@ const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClose, onSu
           row: student.rowNumber,
           field: 'Student Name',
           message: 'Student name is required and must be at least 2 characters',
+          studentName: student.name
+        });
+        hasError = true;
+      }
+
+      // Validate class
+      if (student.class && !classOptions.some(cls => cls.isActive && cls.name === student.class)) {
+        errors.push({
+          row: student.rowNumber,
+          field: 'Class',
+          message: `Invalid class "${student.class}". Available classes: ${classOptions.filter(cls => cls.isActive).map(cls => cls.name).join(', ')}`,
           studentName: student.name
         });
         hasError = true;

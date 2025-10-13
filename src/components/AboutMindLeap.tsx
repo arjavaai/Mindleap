@@ -29,7 +29,7 @@ const AboutMindLeap = () => {
                 </h2>
                 
                 <p className="text-lg sm:text-xl text-gray-600 font-poppins leading-relaxed">
-                  MindLeap is a student development movement designed for Classes 8, 9, and 10. 
+                  MindLeap is designed to guide both Students and Parents towards real growth.
                   We help young minds grow logical thinking, boost confidence, and build academic 
                   independence — in just 10 minutes a day.
                 </p>
