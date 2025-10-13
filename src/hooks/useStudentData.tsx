@@ -132,60 +132,133 @@ const fetchStudentData = async () => {
           ...extractStudentProfile(studentData, studentDoc.id)
         };
       } else {
-        console.log('useStudentData - No student found by UID, trying other methods...');
-        
-        // Second try: Search by email if available
-        if (user.email) {
-          try {
-            const { query, where, getDocs, collection } = await import('firebase/firestore');
-            const studentsQuery = query(
-              collection(db, 'students'),
-              where('email', '==', user.email)
-            );
-            const studentsSnapshot = await getDocs(studentsQuery);
-            
-            if (!studentsSnapshot.empty) {
-              const studentDoc = studentsSnapshot.docs[0];
-              const studentData = studentDoc.data();
-              console.log('useStudentData - Found student by email:', studentData);
+        console.log('useStudentData - No student found by UID doc. Trying other methods...');
+
+        // First try: Search by stored uid field in students collection
+        try {
+          const { query, where, getDocs, collection } = await import('firebase/firestore');
+          const byUidQuery = query(
+            collection(db, 'students'),
+            where('uid', '==', user.uid)
+          );
+          const byUidSnapshot = await getDocs(byUidQuery);
+
+          if (!byUidSnapshot.empty) {
+            const studentDoc = byUidSnapshot.docs[0];
+            const studentData = studentDoc.data();
+            console.log('useStudentData - Found student by uid field:', studentData);
+
+            studentProfile = {
+              ...studentProfile,
+              ...extractStudentProfile(studentData, studentDoc.id)
+            };
+          } else if (user.email) {
+            // Second try: Search by email if available
+            try {
+              const studentsQuery = query(
+                collection(db, 'students'),
+                where('email', '==', user.email)
+              );
+              const studentsSnapshot = await getDocs(studentsQuery);
               
-              studentProfile = {
-                ...studentProfile,
-                ...extractStudentProfile(studentData, studentDoc.id)
-              };
-            } else {
-              // Third try: Extract student ID from email and search
-              if (user.email.includes('@mindleap.edu')) {
-                const studentIdFromEmail = user.email.split('@')[0].toUpperCase();
-                console.log('useStudentData - Trying student ID from email:', studentIdFromEmail);
+              if (!studentsSnapshot.empty) {
+                const studentDoc = studentsSnapshot.docs[0];
+                const studentData = studentDoc.data();
+                console.log('useStudentData - Found student by email:', studentData);
                 
-                const studentIdQuery = query(
-                  collection(db, 'students'),
-                  where('studentId', '==', studentIdFromEmail)
-                );
-                const studentIdSnapshot = await getDocs(studentIdQuery);
-                
-                if (!studentIdSnapshot.empty) {
-                  const studentDoc = studentIdSnapshot.docs[0];
-                  const studentData = studentDoc.data();
-                  console.log('useStudentData - Found student by studentId:', studentData);
+                studentProfile = {
+                  ...studentProfile,
+                  ...extractStudentProfile(studentData, studentDoc.id)
+                };
+              } else {
+                // Third try: Extract student ID from email and search
+                if (user.email.includes('@mindleap.edu')) {
+                  const studentIdFromEmail = user.email.split('@')[0].toUpperCase();
+                  console.log('useStudentData - Trying student ID from email:', studentIdFromEmail);
                   
-                  studentProfile = {
-                    ...studentProfile,
-                    ...extractStudentProfile(studentData, studentDoc.id)
-                  };
+                  const studentIdQuery = query(
+                    collection(db, 'students'),
+                    where('studentId', '==', studentIdFromEmail)
+                  );
+                  const studentIdSnapshot = await getDocs(studentIdQuery);
+                  
+                  if (!studentIdSnapshot.empty) {
+                    const studentDoc = studentIdSnapshot.docs[0];
+                    const studentData = studentDoc.data();
+                    console.log('useStudentData - Found student by studentId:', studentData);
+                    
+                    studentProfile = {
+                      ...studentProfile,
+                      ...extractStudentProfile(studentData, studentDoc.id)
+                    };
+                  }
                 }
               }
+            } catch (searchError) {
+              console.error('Error searching for student by email/studentId:', searchError);
             }
-          } catch (searchError) {
-            console.error('Error searching for student:', searchError);
           }
+        } catch (uidSearchError) {
+          console.error('Error searching for student by uid field:', uidSearchError);
         }
       }
 
       // Enrich student profile with additional data from school
       if (studentProfile.schoolCode) {
         studentProfile = await enrichStudentProfile(studentProfile);
+      }
+
+      // If core fields are missing (common when a lightweight students/{uid} doc exists),
+      // try to find a canonical student document and merge its data.
+      try {
+        const needsMerge = !studentProfile.studentId || !studentProfile.name || !studentProfile.schoolCode;
+        if (needsMerge) {
+          const { query, where, getDocs, collection } = await import('firebase/firestore');
+          let mergedProfile = { ...studentProfile } as any;
+
+          // 1) Prefer doc with uid field match
+          const byUidQuery = query(collection(db, 'students'), where('uid', '==', user.uid));
+          const byUidSnap = await getDocs(byUidQuery);
+          if (!byUidSnap.empty) {
+            const canonicalData = byUidSnap.docs[0].data();
+            mergedProfile = { ...mergedProfile, ...extractStudentProfile(canonicalData, byUidSnap.docs[0].id) };
+          }
+
+          // 2) If still missing, try by email
+          if ((!mergedProfile.studentId || !mergedProfile.schoolCode || !mergedProfile.name) && user.email) {
+            const byEmailQuery = query(collection(db, 'students'), where('email', '==', user.email));
+            const byEmailSnap = await getDocs(byEmailQuery);
+            if (!byEmailSnap.empty) {
+              const data = byEmailSnap.docs[0].data();
+              mergedProfile = { ...mergedProfile, ...extractStudentProfile(data, byEmailSnap.docs[0].id) };
+            }
+          }
+
+          // 3) If email is institutional, derive studentId and try
+          if ((!mergedProfile.studentId || !mergedProfile.schoolCode || !mergedProfile.name) && user.email && user.email.includes('@mindleap.edu')) {
+            const derivedId = user.email.split('@')[0].toUpperCase();
+            const byStudIdQuery = query(collection(db, 'students'), where('studentId', '==', derivedId));
+            const byStudIdSnap = await getDocs(byStudIdQuery);
+            if (!byStudIdSnap.empty) {
+              const data = byStudIdSnap.docs[0].data();
+              mergedProfile = { ...mergedProfile, ...extractStudentProfile(data, byStudIdSnap.docs[0].id) };
+            }
+          }
+
+          // Enrich if we obtained a schoolCode during merge
+          if (mergedProfile.schoolCode) {
+            mergedProfile = await enrichStudentProfile(mergedProfile);
+          }
+
+          studentProfile = mergedProfile;
+        } else {
+          // We already have necessary fields; enrich if schoolCode present
+          if (studentProfile.schoolCode) {
+            studentProfile = await enrichStudentProfile(studentProfile);
+          }
+        }
+      } catch (mergeErr) {
+        console.error('Error merging canonical student profile:', mergeErr);
       }
 
       console.log('useStudentData - Final student profile:', studentProfile);

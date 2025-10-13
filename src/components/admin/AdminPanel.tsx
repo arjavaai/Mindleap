@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, School, LogOut, Brain, Calendar, MessageSquare, Building, MapPin, Target, Video, Play, Menu, X, Shield, FileText } from 'lucide-react';
+import { Users, School, LogOut, Brain, Calendar, MessageSquare, Building, MapPin, Target, Video, Play, Menu, X, Shield, FileText, Award } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { useAdminPermissions } from './AdminContext';
 import SchoolsTab from './SchoolsTab';
@@ -16,6 +16,7 @@ import WorkshopManagementTab from './WorkshopManagementTab';
 import SubAdminManagementTab from './SubAdminManagementTab';
 import QuestionSchedulerTab from './QuestionSchedulerTab';
 import AdminSchoolReports from '../../pages/AdminSchoolReports';
+import PlatinumAchievementsTab from './PlatinumAchievementsTab';
 
 const AdminPanel = () => {
   const { isAdmin, hasPermission } = useAdminPermissions();
@@ -56,6 +57,7 @@ const AdminPanel = () => {
     { id: 'users', label: 'Users', icon: Users, permission: 'users' },
     { id: 'sub-admins', label: 'Sub-Admins', icon: Shield, permission: 'admin-only' },
     { id: 'school-reports', label: 'School Reports', icon: FileText, permission: 'schools' },
+    { id: 'platinum-achievers', label: 'Platinum Achievers', icon: Award, permission: 'schools' },
     { id: 'states', label: 'States & Districts', icon: MapPin, permission: 'states' },
     { id: 'quizzes', label: 'Quiz Manage', icon: Target, permission: 'quizzes' },
     { id: 'webinars', label: 'Live Webinars', icon: Video, permission: 'webinars' },
@@ -218,6 +220,7 @@ const AdminPanel = () => {
               {activeTab === 'users' && hasPermission('users') && <UsersTab />}
               {activeTab === 'sub-admins' && isAdmin && <SubAdminManagementTab />}
               {activeTab === 'school-reports' && hasPermission('schools') && <AdminSchoolReports />}
+              {activeTab === 'platinum-achievers' && hasPermission('schools') && <PlatinumAchievementsTab />}
               {activeTab === 'states' && hasPermission('states') && <StateManagementTab />}
               {activeTab === 'quizzes' && hasPermission('quizzes') && <QuizManagementTab />}
               {activeTab === 'webinars' && hasPermission('webinars') && <WebinarManagementTab />}

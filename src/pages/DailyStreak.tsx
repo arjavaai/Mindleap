@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, Trophy, Flame, Brain, ArrowLeft, Zap, Star, Target, CheckCircle, XCircle, Play, Award, TrendingUp, Sparkles } from 'lucide-react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../lib/firebase';
-import { collection, doc, getDoc, setDoc, query, where, getDocs, orderBy, arrayUnion, updateDoc, limit } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, query, where, getDocs, orderBy, arrayUnion, updateDoc, limit, increment } from 'firebase/firestore';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import DailyQuestionModal from '../components/streak/DailyQuestionModal';
 import StreakCalendar from '../components/streak/StreakCalendar';
@@ -433,13 +433,55 @@ const DailyStreak = () => {
           newStreak = currentStreak + 1; // Increment on any attempt during weekdays
         }
       }
+
+      // 4000-point rollover calculation
+      const previousTotal = Number(totalPoints) || 0;
+      const nextTotal = previousTotal + points;
+      const previousBuckets = Math.floor(previousTotal / 4000);
+      const nextBuckets = Math.floor(nextTotal / 4000);
+      const newPlatinums = Math.max(0, nextBuckets - previousBuckets);
+      const finalTotal = nextTotal % 4000; // rollover remainder
+
+      // If a platinum threshold was crossed, log it for admin before resetting
+      if (newPlatinums > 0) {
+        try {
+          const achievementDate = format(new Date(), 'yyyy-MM-dd');
+          const dateDocRef = doc(db, 'platinumAchievements', achievementDate);
+
+          // Ensure the date doc exists
+          await setDoc(dateDocRef, {
+            date: achievementDate,
+            updatedAt: new Date()
+          }, { merge: true });
+
+          // Fetch minimal student profile details
+          const studentDoc = await getDoc(doc(db, 'students', user.uid));
+          const studentData = studentDoc.exists() ? studentDoc.data() : {};
+
+          // Record/Increment this student's achievements for the day
+          const studentAchRef = doc(db, 'platinumAchievements', achievementDate, 'students', user.uid);
+          await setDoc(studentAchRef, {
+            uid: user.uid,
+            studentId: studentData.studentId || '',
+            name: studentData.name || user.email?.split('@')[0] || 'Student',
+            email: user.email || '',
+            schoolCode: studentData.schoolCode || '',
+            districtCode: studentData.districtCode || '',
+            achievedAt: new Date(),
+            times: increment(newPlatinums)
+          }, { merge: true });
+        } catch (logErr) {
+          console.error('Error logging platinum achievement:', logErr);
+        }
+      }
       
+      // Persist the record and rollover-adjusted totals
       await setDoc(doc(db, 'dailyStreaks', user.uid), {
         records: {
           [targetDate]: record
         },
         currentStreak: newStreak,
-        totalPoints: totalPoints + points,
+        totalPoints: finalTotal,
         lastUpdated: new Date()
       }, {
         merge: true
@@ -464,7 +506,7 @@ const DailyStreak = () => {
         setCurrentStreak(newStreak);
       }
       
-      setTotalPoints(prev => prev + points);
+      setTotalPoints(() => finalTotal);
       
       // Update streak records for calendar
       setStreakRecords(prev => ({

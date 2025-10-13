@@ -59,7 +59,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ studentData, loading = fals
                   Student ID
                 </span>
                 <span className="font-bold text-purple-800 text-lg">
-                  {studentData.studentId || studentData.id || 'Not Available'}
+                  {studentData.studentId || 'Not Available'}
                 </span>
               </div>
             </div>
