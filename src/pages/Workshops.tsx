@@ -454,24 +454,73 @@ const Workshops = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-4xl overflow-hidden shadow-xl"
+              className="bg-white rounded-2xl w-full max-w-4xl overflow-hidden shadow-xl max-h-[90vh] flex flex-col"
             >
-              <div className="p-6 flex justify-between items-center border-b">
+              <div className="p-6 flex justify-between items-center border-b flex-shrink-0">
                 <h3 className="text-xl font-bold">{selectedWorkshop.title}</h3>
-                <button
-                  onClick={() => setShowVideoModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <ArrowLeft className="w-6 h-6" />
-                </button>
+                <div className="flex items-center gap-3">
+                  {selectedWorkshop.youtubeUrl && (
+                    <button
+                      onClick={() => {
+                        const rawUrl = selectedWorkshop.youtubeUrl || '';
+                        const watchUrl = rawUrl.startsWith('http') ? rawUrl : `https://www.youtube.com/watch?v=${rawUrl}`;
+                        const win = window.open(watchUrl, '_blank');
+                        if (win) win.opener = null;
+                      }}
+                      className="flex items-center gap-2 text-purple-600 hover:text-purple-700"
+                      title="Open in YouTube"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Open in YouTube
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowVideoModal(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                    aria-label="Close"
+                  >
+                    <ArrowLeft className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
-              <div className="aspect-video">
-                <iframe
-                  src={`https://www.youtube.com/embed/${selectedWorkshop.youtubeUrl}`}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
+              <div className="flex-1 overflow-auto">
+                <div className="aspect-video bg-gray-100">
+                  {(() => {
+                    const rawUrl = selectedWorkshop.youtubeUrl || '';
+                    const embedUrl = rawUrl.includes('watch?v=')
+                      ? rawUrl.replace('watch?v=', 'embed/')
+                      : (rawUrl.startsWith('http') ? rawUrl : `https://www.youtube.com/embed/${rawUrl}`);
+                    return (
+                      <iframe
+                        src={embedUrl}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title={selectedWorkshop.title}
+                      />
+                    );
+                  })()}
+                </div>
+
+                <div className="p-6 flex items-center justify-between border-t">
+                  <button
+                    onClick={() => {
+                      const rawUrl = selectedWorkshop.youtubeUrl || '';
+                      const watchUrl = rawUrl.startsWith('http') ? rawUrl : `https://www.youtube.com/watch?v=${rawUrl}`;
+                      window.open(watchUrl, '_blank');
+                    }}
+                    className="flex items-center gap-2 text-purple-600 hover:text-purple-700"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Open in YouTube
+                  </button>
+                  <button
+                    onClick={() => setShowVideoModal(false)}
+                    className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

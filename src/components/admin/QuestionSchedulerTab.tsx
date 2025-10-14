@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Eye, BookOpen, BarChart3, Clock, Users, CheckCircle, XCircle, ArrowLeft, ArrowRight } from 'lucide-react';
-import { collection, query, where, getDocs, orderBy, limit, getDoc, doc } from 'firebase/firestore';
+import { Calendar, Eye, BookOpen, BarChart3, Users, CheckCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { format, addDays, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { Button } from '../ui/button';
@@ -32,12 +32,25 @@ interface QuestionDetail {
   explanation: string;
 }
 
+interface StudentResponse {
+  uid: string;
+  name: string;
+  studentId?: string;
+  isCorrect: boolean;
+  selectedOption: string;
+  points: number;
+  timestamp: any;
+  subject?: string;
+  questionId?: string;
+}
+
 const QuestionSchedulerTab = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 })); // Monday start
   const [dailyQuestions, setDailyQuestions] = useState<DailyQuestion[]>([]);
   const [selectedDayQuestion, setSelectedDayQuestion] = useState<DailyQuestion | null>(null);
   const [questionDetail, setQuestionDetail] = useState<QuestionDetail | null>(null);
+  const [studentResponses, setStudentResponses] = useState<StudentResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'week' | 'details'>('week');
 
@@ -99,10 +112,54 @@ const QuestionSchedulerTab = () => {
     }
   };
 
+  const fetchStudentResponses = async (dateString: string) => {
+    console.log('📋 Fetching student responses for date:', dateString);
+    try {
+      const responsesPath = `dailyQuestions/${dateString}/responses`;
+      console.log('📂 Fetching from path:', responsesPath);
+      
+      const responsesSnap = await getDocs(collection(db, 'dailyQuestions', dateString, 'responses'));
+      console.log('📊 Found', responsesSnap.size, 'response documents');
+      
+      const responses: StudentResponse[] = [];
+      responsesSnap.forEach((docSnap) => {
+        const data = docSnap.data() as any;
+        console.log('👤 Response from:', data.name || 'Unknown', '- Correct:', data.isCorrect, '- DocID:', docSnap.id);
+        responses.push({
+          uid: data.uid || docSnap.id,
+          name: data.name || 'Student',
+          studentId: data.studentId || '',
+          isCorrect: !!data.isCorrect,
+          selectedOption: data.selectedOption || '',
+          points: typeof data.points === 'number' ? data.points : 0,
+          timestamp: data.timestamp,
+          subject: data.subject,
+          questionId: data.questionId,
+        });
+      });
+      
+      // Sort by timestamp desc if available
+      responses.sort((a, b) => {
+        const ta = a.timestamp?.toDate?.() || new Date(a.timestamp);
+        const tb = b.timestamp?.toDate?.() || new Date(b.timestamp);
+        return (tb?.getTime?.() || 0) - (ta?.getTime?.() || 0);
+      });
+      
+      console.log('✅ Total responses loaded:', responses.length);
+      setStudentResponses(responses);
+    } catch (err) {
+      console.error('❌ Error fetching student responses:', err);
+      setStudentResponses([]);
+    }
+  };
+
   const handleDayClick = async (dayQuestion: DailyQuestion) => {
     setSelectedDayQuestion(dayQuestion);
     setViewMode('details');
-    await fetchQuestionDetail(dayQuestion.subjectId, dayQuestion.questionId);
+    await Promise.all([
+      fetchQuestionDetail(dayQuestion.subjectId, dayQuestion.questionId),
+      fetchStudentResponses(dayQuestion.date)
+    ]);
   };
 
   const navigateWeek = (direction: 'prev' | 'next') => {
@@ -118,9 +175,11 @@ const QuestionSchedulerTab = () => {
     const dayQuestion = dailyQuestions.find(q => q.date === dateString);
     const dayName = format(date, 'EEEE');
     const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+    const isSunday = date.getDay() === 0;
+    const isSaturday = date.getDay() === 6;
+    const isWeekend = isSunday || isSaturday;
     
-    return { dayQuestion, dayName, isToday, isWeekend, dateString };
+    return { dayQuestion, dayName, isToday, isWeekend, isSaturday, isSunday, dateString };
   };
 
   const getSuccessRate = (correct: number, total: number) => {
@@ -236,6 +295,36 @@ const QuestionSchedulerTab = () => {
                 <div>Date: <span className="font-medium">{format(new Date(selectedDayQuestion.date), 'MMMM d, yyyy')}</span></div>
               </div>
             </div>
+
+            {/* Student Responses */}
+            <div className="bg-white rounded-lg border shadow-sm p-6 md:col-span-2 mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">Student Responses</h3>
+                <div className="text-sm text-gray-500">{studentResponses.length} responses</div>
+              </div>
+
+              {studentResponses.length === 0 ? (
+                <div className="text-sm text-gray-500">No responses recorded yet for this day.</div>
+              ) : (
+                <div className="space-y-2">
+                  {studentResponses.map((resp) => (
+                    <div key={resp.uid} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${resp.isCorrect ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <div>
+                          <div className="font-medium text-gray-800">{resp.name} {resp.studentId ? `(${resp.studentId})` : ''}</div>
+                          <div className="text-xs text-gray-500">{resp.subject || selectedDayQuestion.subject} • {resp.questionId || selectedDayQuestion.questionId}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-sm font-semibold ${resp.isCorrect ? 'text-green-600' : 'text-red-600'}`}>{resp.isCorrect ? 'Correct' : 'Wrong'}</div>
+                        <div className="text-xs text-gray-500">Option: {resp.selectedOption?.toUpperCase?.() || '-'}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -289,7 +378,7 @@ const QuestionSchedulerTab = () => {
             start: weekStart, 
             end: endOfWeek(weekStart, { weekStartsOn: 1 }) 
           }).map((date) => {
-            const { dayQuestion, dayName, isToday, isWeekend, dateString } = getDayInfo(date);
+            const { dayQuestion, dayName, isToday, isWeekend, isSaturday, isSunday, dateString } = getDayInfo(date);
             
             return (
               <motion.div
@@ -299,11 +388,11 @@ const QuestionSchedulerTab = () => {
                 className={`bg-white rounded-lg border-2 p-4 transition-all duration-200 ${
                   isToday 
                     ? 'border-orange-400 bg-orange-50' 
-                    : isWeekend 
+                    : (isWeekend && !dayQuestion)
                     ? 'border-gray-200 bg-gray-50' 
                     : 'border-gray-200 hover:border-gray-300'
-                } ${dayQuestion && !isWeekend ? 'hover:shadow-md cursor-pointer' : ''}`}
-                onClick={() => dayQuestion && !isWeekend && handleDayClick(dayQuestion)}
+                } ${dayQuestion ? 'hover:shadow-md cursor-pointer' : ''}`}
+                onClick={() => dayQuestion && handleDayClick(dayQuestion)}
               >
                 <div className="text-center mb-3">
                   <div className={`font-semibold ${isToday ? 'text-orange-600' : 'text-gray-800'}`}>
@@ -314,15 +403,11 @@ const QuestionSchedulerTab = () => {
                   </div>
                 </div>
 
-                {isWeekend ? (
-                  <div className="text-center py-4">
-                    <div className="text-gray-400 text-sm">Weekend</div>
-                    <div className="text-xs text-gray-400">No questions</div>
-                  </div>
-                ) : dayQuestion ? (
+                {dayQuestion ? (
                   <div className="space-y-2">
                     <Badge variant="secondary" className="w-full text-center justify-center">
                       {dayQuestion.subject}
+                      {isSaturday && <span className="ml-1 text-xs">(Sat)</span>}
                     </Badge>
                     
                     <div className="flex items-center justify-center gap-2 text-sm">
@@ -339,16 +424,16 @@ const QuestionSchedulerTab = () => {
                     )}
                     
                     <div className="flex items-center justify-center mt-2">
-                      <Button size="sm" variant="outline" className="text-xs">
+                      <Button size="sm" variant="outline" className="text-xs" onClick={(e) => { e.stopPropagation(); handleDayClick(dayQuestion); }}>
                         <Eye className="w-3 h-3 mr-1" />
-                        View
+                        View Details
                       </Button>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <div className="text-gray-400 text-sm">No question</div>
-                    <div className="text-xs text-gray-400">scheduled</div>
+                    <div className="text-gray-400 text-sm">{isSunday ? 'Sunday' : isSaturday ? 'Saturday' : 'No question'}</div>
+                    <div className="text-xs text-gray-400">{isWeekend ? 'No question scheduled' : 'scheduled'}</div>
                   </div>
                 )}
               </motion.div>

@@ -622,9 +622,9 @@ const Webinars = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+              className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
             >
-              <div className="p-6 border-b border-gray-200">
+              <div className="p-6 border-b border-gray-200 flex-shrink-0">
                 <div className="flex justify-between items-start">
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -641,21 +641,39 @@ const Webinars = () => {
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      setShowVideoModal(false);
-                      setSelectedWebinar(null);
-                    }}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {selectedWebinar.youtubeUrl && (
+                      <button
+                        onClick={() => {
+                          const rawUrl = selectedWebinar.youtubeUrl || '';
+                          const watchUrl = rawUrl.includes('http') ? rawUrl : `https://www.youtube.com/watch?v=${rawUrl}`;
+                          const win = window.open(watchUrl, '_blank');
+                          if (win) win.opener = null;
+                        }}
+                        className="flex items-center gap-2 text-purple-600 hover:text-purple-700 transition-colors"
+                        title="Open in YouTube"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Open in YouTube
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setShowVideoModal(false);
+                        setSelectedWebinar(null);
+                      }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      aria-label="Close"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="p-6">
+              <div className="p-6 flex-1 overflow-auto">
                 {selectedWebinar.description && (
                   <p className="text-gray-700 mb-6">{selectedWebinar.description}</p>
                 )}

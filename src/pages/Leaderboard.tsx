@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Trophy, Medal, Crown, Star, Lock } from 'lucide-react';
+import { ArrowLeft, Trophy, Medal, Crown, Star, Lock, RefreshCw, Clock, Users } from 'lucide-react';
 import StudentHeader from '../components/StudentHeader';
 import { useNavigate } from 'react-router-dom';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../lib/firebase';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import StudentAuthGuard from '../components/auth/StudentAuthGuard';
 interface LeaderboardStudent {
   id: string;
@@ -22,16 +22,43 @@ const Leaderboard = () => {
   const [user] = useAuthState(auth);
   const [students, setStudents] = useState<LeaderboardStudent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [currentUserSchool, setCurrentUserSchool] = useState<string>('');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [debugInfo, setDebugInfo] = useState({ totalStudents: 0, filteredStudents: 0, studentsWithPoints: 0 });
   
   useEffect(() => {
-    if (user) {
-      fetchLeaderboardData();
-    }
+    if (!user) return;
+    
+    // Initial fetch
+    fetchLeaderboardData();
+    
+    // Set up real-time listener on dailyStreaks collection
+    const unsubscribe = onSnapshot(
+      collection(db, 'dailyStreaks'),
+      (snapshot) => {
+        console.log('🔄 Real-time update detected - Refreshing leaderboard');
+        // Debounce updates by 500ms
+        setTimeout(() => {
+          fetchLeaderboardData();
+        }, 500);
+      },
+      (error) => {
+        console.error('Error in leaderboard real-time listener:', error);
+      }
+    );
+    
+    return () => unsubscribe();
   }, [user]);
   
-  const fetchLeaderboardData = async () => {
+  const fetchLeaderboardData = async (isManualRefresh = false) => {
     if (!user) return;
+    
+    if (isManualRefresh) {
+      setRefreshing(true);
+    }
+    
+    const startTime = Date.now();
     
     try {
       // Get current user's school information
@@ -45,9 +72,15 @@ const Leaderboard = () => {
 
       // Get ALL students from the students collection
       const studentsSnapshot = await getDocs(collection(db, 'students'));
-      const leaderboardData: LeaderboardStudent[] = [];
-      const processedUIDs = new Set<string>(); // Prevent duplicates
+      console.log('🔍 Leaderboard Debug - Total students in DB:', studentsSnapshot.size);
+      console.log('🏫 Current user school code:', userSchoolCode);
       
+      // Collect valid student UIDs for batch fetching
+      const validStudents: { uid: string; data: any }[] = [];
+      const processedUIDs = new Set<string>();
+      const skippedReasons = { duplicate: 0, invalidName: 0, wrongSchool: 0, noStreakData: 0 };
+      
+      // First pass: Filter students and collect UIDs
       for (const studentDoc of studentsSnapshot.docs) {
         const studentData = studentDoc.data();
         // Use the Firebase Auth UID stored in the document, not the document ID
@@ -55,12 +88,14 @@ const Leaderboard = () => {
         
         // Skip if already processed (prevent duplicates)
         if (processedUIDs.has(studentUID)) {
+          skippedReasons.duplicate++;
           continue;
         }
         processedUIDs.add(studentUID);
         
         // Skip invalid students
         if (!studentData.name || studentData.name.trim() === '' || studentData.name === 'Unknown Student') {
+          skippedReasons.invalidName++;
           continue;
         }
         
@@ -72,49 +107,74 @@ const Leaderboard = () => {
           studentData.district === userSchoolCode;
           
         if (!shouldInclude) {
+          skippedReasons.wrongSchool++;
           continue;
         }
         
-        // Get daily streak data for this student
-        let totalPoints = 0;
-        let currentStreak = 0;
+        // Add to valid students list for batch fetching
+        validStudents.push({ uid: studentUID, data: studentData });
+      }
+      
+      // Second pass: Batch fetch all streak data (10 at a time for performance)
+      const leaderboardData: LeaderboardStudent[] = [];
+      const batchSize = 10;
+      
+      for (let i = 0; i < validStudents.length; i += batchSize) {
+        const batch = validStudents.slice(i, i + batchSize);
         
-        try {
-          const streakDoc = await getDoc(doc(db, 'dailyStreaks', studentUID));
+        // Fetch all streak docs in parallel for this batch
+        const streakPromises = batch.map(student => 
+          getDoc(doc(db, 'dailyStreaks', student.uid))
+            .then(streakDoc => ({ student, streakDoc }))
+            .catch(error => {
+              console.error(`Error fetching streak for ${student.data.name}:`, error);
+              return { student, streakDoc: null };
+            })
+        );
+        
+        const results = await Promise.all(streakPromises);
+        
+        // Process batch results
+        for (const { student, streakDoc } of results) {
+          let totalPoints = 0;
+          let currentStreak = 0;
           
-          if (streakDoc.exists()) {
+          if (streakDoc && streakDoc.exists()) {
             const streakData = streakDoc.data();
             currentStreak = streakData.currentStreak || 0;
-            totalPoints = streakData.totalPoints || 0;
-
-            // Calculate from records (same as useStudentData)
-            const records = streakData.records || {};
-            const calculatedPoints = Object.values(records).reduce((sum, record) => {
-              return sum + (typeof record?.points === 'number' ? record.points : 0);
-            }, 0);
-
-            // Use calculated points if available
-            if (calculatedPoints > 0) {
+            
+            // PRIORITY 1: Use absoluteTotalPoints (new field that never resets)
+            totalPoints = streakData.absoluteTotalPoints || 0;
+            
+            // PRIORITY 2: Fallback to totalPoints (rollover field)
+            if (totalPoints === 0) {
+              totalPoints = streakData.totalPoints || 0;
+            }
+            
+            // PRIORITY 3: Calculate from records as final fallback
+            if (totalPoints === 0) {
+              const records = streakData.records || {};
+              const calculatedPoints = Object.values(records).reduce((sum, record) => {
+                return sum + (typeof record?.points === 'number' ? record.points : 0);
+              }, 0);
               totalPoints = calculatedPoints;
             }
+          } else {
+            skippedReasons.noStreakData++;
           }
-        } catch (error) {
-          // Silently handle error - student will show 0 points
+          
+          // Add to leaderboard
+          leaderboardData.push({
+            id: student.uid,
+            name: student.data.name,
+            studentId: student.data.studentId || student.uid.substring(0, 8).toUpperCase(),
+            userId: student.uid,
+            dailyStreakScore: totalPoints,
+            rank: 0, // Will be set after sorting
+            schoolId: userSchoolCode || 'general',
+            profileSubtitle: getProfileSubtitle(totalPoints, currentStreak)
+          });
         }
-        
-        // Add to leaderboard
-        leaderboardData.push({
-          id: studentUID,
-          name: studentData.name,
-          studentId: studentData.studentId || studentUID.substring(0, 8).toUpperCase(),
-          userId: studentUID,
-          dailyStreakScore: totalPoints,
-          rank: 0, // Will be set after sorting
-          schoolId: userSchoolCode || 'general',
-          profileSubtitle: getProfileSubtitle(totalPoints, currentStreak)
-        });
-        
-
       }
       
       // Sort by points (highest first) and assign ranks
@@ -124,13 +184,33 @@ const Leaderboard = () => {
         rank: index + 1
       }));
       
-
+      // Debug logging
+      const endTime = Date.now();
+      const loadTime = ((endTime - startTime) / 1000).toFixed(2);
+      const studentsWithPoints = rankedStudents.filter(s => s.dailyStreakScore > 0).length;
       
+      console.log('📊 Leaderboard Stats:');
+      console.log('  - Load time:', loadTime + 's');
+      console.log('  - Students after filtering:', rankedStudents.length);
+      console.log('  - Students with points > 0:', studentsWithPoints);
+      console.log('  - Skipped reasons:', skippedReasons);
+      console.log('  - Top 5 students:', rankedStudents.slice(0, 5).map(s => ({
+        name: s.name,
+        points: s.dailyStreakScore
+      })));
+      
+      setDebugInfo({
+        totalStudents: studentsSnapshot.size,
+        filteredStudents: rankedStudents.length,
+        studentsWithPoints
+      });
+      setLastUpdated(new Date());
       setStudents(rankedStudents);
     } catch (error) {
       console.error('Error fetching leaderboard data:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
   
@@ -217,9 +297,33 @@ const Leaderboard = () => {
               className="bg-white rounded-2xl shadow-xl overflow-hidden"
             >
               <div className="bg-gradient-to-r from-orange-500 to-yellow-500 p-4">
-                <h2 className="text-white text-xl font-bold text-center">
-                  Complete Rankings
-                </h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-white text-xl font-bold">
+                    Complete Rankings
+                  </h2>
+                  <button
+                    onClick={() => fetchLeaderboardData(true)}
+                    disabled={refreshing}
+                    className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                    <span className="text-sm font-medium">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+                  </button>
+                </div>
+                
+                {/* Stats Row */}
+                <div className="flex items-center gap-4 mt-3 text-white/90 text-sm">
+                  <div className="flex items-center gap-1">
+                    <Users className="w-4 h-4" />
+                    <span>{debugInfo.filteredStudents} students</span>
+                  </div>
+                  {lastUpdated && (
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      <span>Updated {new Date(lastUpdated).toLocaleTimeString()}</span>
+                    </div>
+                  )}
+                </div>
               </div>
               
               {students.length > 0 ? (

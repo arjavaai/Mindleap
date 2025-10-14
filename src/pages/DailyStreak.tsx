@@ -100,17 +100,26 @@ const DailyStreak = () => {
   const getTodaySubject = async (): Promise<Subject | null> => {
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const todayDayName = dayNames[today.getDay()];
+    
+    // Block Sunday questions from students
+    if (todayDayName === 'Sunday') {
+      console.log('🚫 Sunday: No questions available for students');
+      return null;
+    }
+    
     try {
       const subjectsQuery = query(collection(db, 'subjects'), where('scheduledDay', '==', todayDayName));
       const subjectsSnapshot = await getDocs(subjectsQuery);
       if (!subjectsSnapshot.empty) {
         const subjectDoc = subjectsSnapshot.docs[0];
+        console.log('✅ Subject found for', todayDayName, ':', subjectDoc.data().name);
         return {
           id: subjectDoc.id,
           name: subjectDoc.data().name,
           scheduledDay: subjectDoc.data().scheduledDay
         };
       }
+      console.log('⚠️ No subject scheduled for', todayDayName);
       return null;
     } catch (error) {
       console.error('Error getting today subject:', error);
@@ -189,20 +198,22 @@ const DailyStreak = () => {
         return;
       }
 
-      // Get previously used questions to avoid immediate repeats
-      const recentQuestions = await getRecentlyUsedQuestions(subjectId, 30); // Last 30 days
+      // Get previously used questions across all time to avoid repeats until exhaustion
+      const usedQuestions = await getRecentlyUsedQuestions(subjectId, 0);
 
-      // Filter out recently used questions
-      const availableQuestions = questionsSnapshot.docs.filter(doc => 
-        !recentQuestions.includes(doc.id)
+      // Filter out used questions
+      const availableQuestions = questionsSnapshot.docs.filter(docSnap => 
+        !usedQuestions.includes(docSnap.id)
       );
 
-      // If no unused questions, use all questions (reset cycle)
-      const questionsToChooseFrom = availableQuestions.length > 0 ? availableQuestions : questionsSnapshot.docs;
+      // If no unused questions remain, do not schedule a question (show 'No Challenge Today')
+      if (availableQuestions.length === 0) {
+        return;
+      }
 
       // Select a random question from available ones
-      const randomIndex = Math.floor(Math.random() * questionsToChooseFrom.length);
-      const selectedQuestion = questionsToChooseFrom[randomIndex];
+      const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+      const selectedQuestion = availableQuestions[randomIndex];
 
       // Save the scheduled question for today
       await setDoc(doc(db, 'dailyQuestions', dateString), {
@@ -216,36 +227,37 @@ const DailyStreak = () => {
         correctAttempts: 0
       });
 
-
     } catch (error) {
       console.error('Error scheduling question:', error);
     }
   };
 
-  // Get recently used question IDs to avoid repeats
+  // Get previously used question IDs for a subject. If days <= 0, fetch all; otherwise limit to 'days'.
   const getRecentlyUsedQuestions = async (subjectId: string, days: number): Promise<string[]> => {
     try {
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      const used: string[] = [];
 
-      const recentQuestions: string[] = [];
-      
-      // Query recent daily questions
-      const dailyQuestionsQuery = query(
+      // Build query for this subject's scheduled days
+      let qRef: any = query(
         collection(db, 'dailyQuestions'),
-        where('subjectId', '==', subjectId),
-        orderBy('date', 'desc'),
-        limit(days)
+        where('subjectId', '==', subjectId)
       );
 
-      const dailyQuestionsSnapshot = await getDocs(dailyQuestionsQuery);
-      dailyQuestionsSnapshot.forEach(doc => {
-        const data = doc.data();
-        recentQuestions.push(data.questionId);
+      // If a positive days limit is provided, we can add an order and limit, else fetch all
+      if (days > 0) {
+        qRef = query(
+          collection(db, 'dailyQuestions'),
+          where('subjectId', '==', subjectId)
+        );
+      }
+
+      const snapshot = await getDocs(qRef);
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() as any;
+        if (data?.questionId) used.push(String(data.questionId));
       });
 
-      return recentQuestions;
+      return used;
     } catch (error) {
       console.error('Error getting recently used questions:', error);
       return [];
@@ -441,6 +453,14 @@ const DailyStreak = () => {
       const nextBuckets = Math.floor(nextTotal / 4000);
       const newPlatinums = Math.max(0, nextBuckets - previousBuckets);
       const finalTotal = nextTotal % 4000; // rollover remainder
+      
+      console.log('💰 Points Calculation:', {
+        previousTotal,
+        pointsEarned: points,
+        nextTotal,
+        finalTotal,
+        platinumCount: nextBuckets
+      });
 
       // If a platinum threshold was crossed, log it for admin before resetting
       if (newPlatinums > 0) {
@@ -481,7 +501,9 @@ const DailyStreak = () => {
           [targetDate]: record
         },
         currentStreak: newStreak,
-        totalPoints: finalTotal,
+        totalPoints: finalTotal,              // Rollover points (0-3999)
+        absoluteTotalPoints: nextTotal,       // Absolute total (never resets) - FOR LEADERBOARD
+        platinumCount: nextBuckets,           // Number of platinum achievements
         lastUpdated: new Date()
       }, {
         merge: true
@@ -497,6 +519,34 @@ const DailyStreak = () => {
             totalAttempts: (data.totalAttempts || 0) + 1,
             correctAttempts: (data.correctAttempts || 0) + (isCorrect ? 1 : 0)
           });
+        }
+
+        // Record per-student response under the dailyQuestions subcollection for scheduler details
+        try {
+          console.log('📝 Recording student response for date:', todayString);
+          const studentDoc = await getDoc(doc(db, 'students', user.uid));
+          const studentData = studentDoc.exists() ? studentDoc.data() : {} as any;
+          
+          const responseData = {
+            uid: user.uid,
+            studentId: studentData.studentId || '',
+            name: studentData.name || user.email?.split('@')[0] || 'Student',
+            isCorrect,
+            selectedOption,
+            correctOption: todayQuestion.correctOption,
+            points,
+            timestamp: new Date(),
+            subject: todayQuestion.subject,
+            questionId: todayQuestion.id,
+          };
+          
+          console.log('💾 Writing response:', responseData.name, '- Correct:', isCorrect, '- Path:', `dailyQuestions/${todayString}/responses/${user.uid}`);
+          
+          await setDoc(doc(db, 'dailyQuestions', todayString, 'responses', user.uid), responseData, { merge: true });
+          
+          console.log('✅ Response recorded successfully');
+        } catch (respErr) {
+          console.error('❌ Error writing student response record:', respErr);
         }
       }
 
