@@ -37,15 +37,6 @@ const AuthInterface = () => {
           )}
         </motion.div>
 
-        {/* Footer */}
-        <motion.div
-          className="text-center mt-6 text-sm text-gray-500"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-        >
-          Made with ❤️ for students of Classes 8, 9 & 10
-        </motion.div>
       </motion.div>
     </div>
   );
